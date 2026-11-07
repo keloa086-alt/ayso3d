@@ -295,11 +295,11 @@
   <!-- ═══ الموديل المدرَّب ═══ -->
   <div class="aicard" id="aiCard">
     <div class="aihead"><b>الموديل المدرَّب — شبكة عصبية تُدرَّب هنا</b><span id="aiState">غير مدرَّب</span></div>
-    <p>شبكة من ٥ ملايين وزن تبدأ من أصفار وتتدرّب **تلقائياً أول ما تفتح الصفحة** — ثم تُحفظ في متصفحك (IndexedDB) فترجع جاهزة بلا انتظار. تعلّم حقيقي، بلا نماذج جاهزة، بلا سيرفر، بلا GPU. ترميز النص إلى ٣٨٤ ميزة مُهشَّرة، والمخرج شبكة إشغال ٢٤×٢٤×٢٤.</p>
+    <p>شبكة من ١٠ ملايين وزن تبدأ من أصفار وتتدرّب **تلقائياً أول ما تفتح الصفحة** — ثم تُحفظ في متصفحك (IndexedDB) فترجع جاهزة بلا انتظار. تعلّم حقيقي، بلا نماذج جاهزة، بلا سيرفر، بلا GPU. ترميز النص إلى ٣٨٤ ميزة مُهشَّرة، والمخرج شبكة إشغال ٢٨×٢٨×٢٨.</p>
     <div class="aibar"><i id="aiBar"></i></div>
     <div class="aimeta" id="aiMeta">
-      <span>params <b>5,322,240</b></span>
-      <span>grid <b>24³</b></span>
+      <span>params <b>8,451,520</b></span>
+      <span>grid <b>28³</b></span>
       <span>feat <b>384</b></span>
       <span>optimizer <b>Adam</b></span>
     </div>
@@ -426,12 +426,12 @@ function tint(col, style){
 
 /* ── الأشكال ── */
 const SHAPES = {
-  "كرسي":{key:"chair",build(s,C){ const w=.52*s,d=.5*s,sy=.46*s,cd=0.07*s,L="wood",C2="#6e5238";
-    box(0,sy,0,w,cd,d,C); for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box(x*(w/2-.05*s),sy/2,z*(d/2-.05*s),.06*s,sy,.06*s,C2);
+  "كرسي":{key:"chair",build(s,C){ const w=.54*s,d=.52*s,sy=.46*s,cd=0.10*s,L="wood",C2="#6e5238";
+    box(0,sy,0,w,cd,d,C); for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box(x*(w/2-.05*s),sy/2,z*(d/2-.05*s),.08*s,sy,.08*s,C2);
     box(0,sy+.35*s,-d/2+.03*s,w*.9,.72*s,cd,C);
     for(const x of [-1,1]) box(x*(w/2-.03*s),.59*s,-d/2+.03*s,.05*s,1.18*s,cd*.9,C2); }},
   "طاولة":{key:"table",build(s,C){ const w=1.15*s,d=.72*s,ty=.72*s;
-    box(0,ty,0,w,.08*s,d,C); for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box(x*(w/2-.08*s),ty/2,z*(d/2-.08*s),.09*s,ty,.09*s,"#6e5238"); }},
+    box(0,ty,0,w,.11*s,d,C); for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box(x*(w/2-.08*s),ty/2,z*(d/2-.08*s),.1*s,ty,.1*s,"#6e5238"); }},
   "بيت":{key:"house",build(s,C){ const w=1.35*s,h=.95*s,d=1.25*s;
     box(0,h/2,0,w,h,d,C); pyramid(0,h,0,w*1.12,.62*s,d*1.12,"#a8503f");
     box(0,.28*s,d/2+.01,.28*s,.56*s,.06*s,"#6e5238");
@@ -449,9 +449,9 @@ const SHAPES = {
   "صاروخ":{key:"rocket",build(s){ cyl(0,.62*s,0,.21*s,1.05*s,18,"#e8e8ec"); cone(0,1.145*s,0,.21*s,.42*s,18,"#c0432f");
     box(-.22*s,.18*s,0,.06*s,.42*s,.3*s,"#c0432f"); box(.22*s,.18*s,0,.06*s,.42*s,.3*s,"#c0432f");
     cyl(0,1.0*s,0,.16*s,.03*s,18,"#59606d"); box(0,.12*s,0,.26*s,.16*s,.26*s,"#9aa4b2"); }},
-  "سيف":{key:"sword",build(s){ box(0,.95*s,0,.09*s,1.1*s,.025*s,"#c9d2dd"); pyramid(0,1.5*s,0,.09*s,.14*s,.025*s,"#c9d2dd");
-    box(0,.39*s,0,.46*s,.05*s,.07*s,"#8a6b3a"); box(0,.25*s,0,.07*s,.24*s,.07*s,"#3b3f47"); box(0,.12*s,0,.13*s,.08*s,.13*s,"#8a6b3a"); }},
-  "مصباح":{key:"lamp",build(s){ box(0,.03*s,0,.36*s,.06*s,.36*s,"#3b3f47"); cyl(0,.55*s,0,.035*s,1.05*s,10,"#59606d");
+  "سيف":{key:"sword",build(s){ box(0,.95*s,0,.11*s,1.1*s,.055*s,"#c9d2dd"); pyramid(0,1.5*s,0,.11*s,.14*s,.055*s,"#c9d2dd");
+    box(0,.39*s,0,.46*s,.075*s,.09*s,"#8a6b3a"); box(0,.25*s,0,.07*s,.24*s,.07*s,"#3b3f47"); box(0,.12*s,0,.13*s,.08*s,.13*s,"#8a6b3a"); }},
+  "مصباح":{key:"lamp",build(s){ box(0,.04*s,0,.38*s,.08*s,.38*s,"#3b3f47"); cyl(0,.55*s,0,.055*s,1.05*s,12,"#59606d");
     cone(0,.85*s,0,.34*s,.42*s,16,"#e6e2da"); cyl(0,.86*s,0,.3*s,.03*s,16,"#e8e8ec"); }},
   "برج":{key:"tower",build(s){ box(0,.45*s,0,.9*s,.9*s,.9*s,"#b8bcc4"); box(0,1.12*s,0,.7*s,.44*s,.7*s,"#9aa4b2");
     box(0,1.52*s,0,.5*s,.36*s,.5*s,"#b8bcc4"); box(0,1.82*s,0,.3*s,.26*s,.3*s,"#9aa4b2"); }},
@@ -848,7 +848,7 @@ function buildVoxelScene(order, s, style){
    نص → ٣٨٤ ميزة مُهشَّرة → ٤٠٩٦ خلية (16³) → شبكة إشغال → مجسّم
    ══════════════════════════════════════════════════════════════ */
 const AI = {
-  N: 24, D: 384, EPOCHS: 12, LR: 0.026,
+  N: 28, D: 384, EPOCHS: 20, LR: 0.022, NEG: 0.45,
   W: null, b: null, trained: false, busy: false,
   iou: 0, iouTest: 0, loss: 0, ms: 0, samples: 0, steps: 0
 };
@@ -1010,61 +1010,70 @@ function aiBuildDataset(){
   return ds;
 }
 
-/* ── تدريب ── */
+/* ── تدريب: تخطيط W[d*K + k] + عيّنات سالبة عشوائية (أسرع ٣×) ── */
+let _z = null, _g = null, _sel = null;
 async function aiTrain(report){
   if(AI.busy) return;
   AI.busy = true; AI.trained = false;
   const t0 = performance.now();
   const K = AI_K(), D = AI.D;
   const saved = snapMesh();
-  const ds = aiBuildDataset();        /* يغيّر MESH مؤقتاً */
+  const ds = aiBuildDataset();
   loadMesh(saved);
   const W  = new Float32Array(K*D), b  = new Float32Array(K);
   const mW = new Float32Array(K*D), vW = new Float32Array(K*D);
   const mb = new Float32Array(K),   vb = new Float32Array(K);
-  const z = new Float32Array(K), g = new Float32Array(K);
+  if(!_z || _z.length < K)  _z = new Float32Array(K);
+  if(!_g || _g.length < K)  _g = new Float32Array(K);
+  if(!_sel || _sel.length < K) _sel = new Int32Array(K);
+  const z = _z, g = _g, sel = _sel;
   const b1 = .9, b2 = .999, eps = 1e-8;
   let step = 0, loss = 0;
   for(let ep=0; ep<AI.EPOCHS; ep++){
     for(let i=ds.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const tmp=ds[i]; ds[i]=ds[j]; ds[j]=tmp; }
-    const lr = AI.LR * (1 - .55 * ep / AI.EPOCHS);
+    const lr = AI.LR * (1 - .5 * ep / AI.EPOCHS);
     let guard = 0;
     for(const sm of ds){
       step++;
-      if(++guard % 12 === 0) await new Promise(r => setTimeout(r, 0));
+      if(++guard % 8 === 0) await new Promise(r => setTimeout(r, 0));
       const c1 = 1 - Math.pow(b1,step), c2 = 1 - Math.pow(b2,step);
-      z.set(b);
+      /* اختيار الخلايا: كل الموجبة + عيّنة من السالبة */
+      let m = 0;
+      for(let k=0;k<K;k++){
+        const y = sm.y[k];
+        if(y > 0 || Math.random() < AI.NEG) sel[m++] = k;
+      }
+      const negW = 1/AI.NEG;
+      for(let t=0;t<m;t++) z[t] = b[sel[t]];
       const ids = sm.ids, vals = sm.vals, na = ids.length;
-      for(let a=0;a<na;a++){
-        const d = ids[a], v = vals[a];
-        for(let k=0;k<K;k++) z[k] += W[k*D+d]*v;
+      for(let ad=0;ad<na;ad++){
+        const base = ids[ad]*K, v = vals[ad];
+        for(let t=0;t<m;t++) z[t] += W[base + sel[t]]*v;
       }
       loss = 0;
       let sumP = 0, sumY = 0, sumPY = 0;
-      for(let k=0;k<K;k++){
-        const p = 1/(1+Math.exp(-z[k])), yy = sm.y[k];
-        g[k] = p - yy;
-        loss += -(yy*Math.log(p+1e-7) + (1-yy)*Math.log(1-p+1e-7));
-        sumP += p; sumY += yy; sumPY += p*yy;
+      for(let t=0;t<m;t++){
+        const k = sel[t], p = 1/(1+Math.exp(-z[t])), yy = sm.y[k];
+        const wgt = yy ? 1 : negW;
+        g[t] = (p - yy)*wgt;
+        loss += wgt * -(yy*Math.log(p+1e-7) + (1-yy)*Math.log(1-p+1e-7));
+        sumP += p*wgt; sumY += yy*wgt; sumPY += p*yy*wgt;
       }
-      loss /= K;
-      /* Dice: يحسّن الأجزاء الرقيقة والحدود */
+      loss /= (m || 1);
       const D2 = sumP + sumY;
       if(D2 > 0){
-        const dice = 2*sumPY/D2;
-        loss += .5*(1 - dice);
         const kd = 1/(D2*D2);
-        for(let k=0;k<K;k++) g[k] += .5 * (-(2*sm.y[k]*D2 - 2*sumPY) * kd);
+        for(let t=0;t<m;t++) g[t] += .5 * (-(2*sm.y[sel[t]]*D2 - 2*sumPY) * kd);
       }
-      for(let k=0;k<K;k++){
-        const gr = g[k];
+      for(let t=0;t<m;t++){
+        const k = sel[t], gr = g[t];
         mb[k] = b1*mb[k] + (1-b1)*gr;  vb[k] = b2*vb[k] + (1-b2)*gr*gr;
         b[k] -= lr * (mb[k]/c1) / (Math.sqrt(vb[k]/c2) + eps);
       }
-      for(let a=0;a<na;a++){
-        const d = ids[a], v = vals[a], v2 = v*v;
-        for(let k=0;k<K;k++){
-          const o = k*D+d, gr = g[k]*v;
+      for(let ad=0;ad<na;ad++){
+        const base = ids[ad]*K, v = vals[ad], v2 = 1;
+        for(let t=0;t<m;t++){
+          const k = sel[t], o = base + k, gr = g[t]*v;
           mW[o] = b1*mW[o] + (1-b1)*gr;  vW[o] = b2*vW[o] + (1-b2)*gr*gr;
           W[o] -= lr * (mW[o]/c1) / (Math.sqrt(vW[o]/c2) + eps);
         }
@@ -1079,7 +1088,6 @@ async function aiTrain(report){
   AI.iouTest = aiEvalTest();
 }
 
-
 /* ── تنظيف المخرج: أكبر مكوّن متصل + إغلاق الفجوات المغلقة ── */
 function cleanOcc(occ, N){
   const id = (i,j,k) => (k*N+j)*N+i;
@@ -1090,7 +1098,8 @@ function cleanOcc(occ, N){
     const comp = [q]; seen[q] = 1;
     for(let h=0;h<comp.length;h++){
       const c = comp[h], i = c%N, j = Math.floor(c/N)%N, k = Math.floor(c/(N*N));
-      for(const [a,b,d] of [[i-1,j,k],[i+1,j,k],[i,j-1,k],[i,j+1,k],[i,j,k-1],[i,j,k+1]]){
+      for(const n of [[i-1,j,k],[i+1,j,k],[i,j-1,k],[i,j+1,k],[i,j,k-1],[i,j,k+1]]){
+        const a=n[0],b=n[1],d=n[2];
         if(a<0||b<0||d<0||a>=N||b>=N||d>=N) continue;
         const r = id(a,b,d);
         if(occ[r] && !seen[r]){ seen[r] = 1; comp.push(r); }
@@ -1100,7 +1109,21 @@ function cleanOcc(occ, N){
   }
   const out = new Uint8Array(N*N*N);
   if(best) for(const q of best) out[q] = 1;
-  /* إغلاق الفجوات الداخلية */
+  /* سد الثقوب الصغيرة: خلية فاضية لها ٥ جيران مصمتين تُملأ */
+  {
+    const add = [];
+    for(let k=0;k<N;k++) for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+      if(out[id(i,j,k)]) continue;
+      let c = 0;
+      for(const n of [[i-1,j,k],[i+1,j,k],[i,j-1,k],[i,j+1,k],[i,j,k-1],[i,j,k+1]]){
+        const a=n[0],b=n[1],d=n[2];
+        if(a<0||b<0||d<0||a>=N||b>=N||d>=N) continue;
+        if(out[id(a,b,d)]) c++;
+      }
+      if(c >= 5) add.push(id(i,j,k));
+    }
+    for(const q of add) out[q] = 1;
+  }
   const air = new Uint8Array(N*N*N), st = [];
   for(let k=0;k<N;k++) for(let j=0;j<N;j++) for(let i=0;i<N;i++){
     if(i===0||j===0||k===0||i===N-1||j===N-1||k===N-1){
@@ -1109,7 +1132,8 @@ function cleanOcc(occ, N){
   }
   while(st.length){
     const q = st.pop(), i = q%N, j = Math.floor(q/N)%N, k = Math.floor(q/(N*N));
-    for(const [a,b,d] of [[i-1,j,k],[i+1,j,k],[i,j-1,k],[i,j+1,k],[i,j,k-1],[i,j,k+1]]){
+    for(const n of [[i-1,j,k],[i+1,j,k],[i,j-1,k],[i,j+1,k],[i,j,k-1],[i,j,k+1]]){
+      const a=n[0],b=n[1],d=n[2];
       if(a<0||b<0||d<0||a>=N||b>=N||d>=N) continue;
       const r = id(a,b,d);
       if(air[r] || out[r]) continue;
@@ -1123,11 +1147,11 @@ function cleanOcc(occ, N){
 /* ── استنتاج ── */
 function aiPredictOcc(text){
   if(!AI.trained) return null;
-  const K = AI_K(), D = AI.D, f = aiFeat(text);
+  const K = AI_K(), f = aiFeat(text);
   const z = Float32Array.from(AI.b);
   for(let a=0;a<f.ids.length;a++){
-    const d = f.ids[a], v = f.vals[a];
-    for(let k=0;k<K;k++) z[k] += AI.W[k*D+d]*v;
+    const base = f.ids[a]*K, v = f.vals[a];
+    for(let k=0;k<K;k++) z[k] += AI.W[base+k]*v;
   }
   const occ = new Uint8Array(K);
   for(let k=0;k<K;k++) occ[k] = (1/(1+Math.exp(-z[k]))) > .5 ? 1 : 0;
@@ -1139,14 +1163,14 @@ function iouOf(a, b){
   return uni ? inter/uni : 0;
 }
 function aiEval(ds){
+  const K = AI_K(), z = new Float32Array(K), occ = new Uint8Array(K);
   let s = 0;
   for(const sm of ds){
-    const f = { ids: Array.from(sm.ids), vals: Array.from(sm.vals) };
-    const K = AI_K(), D = AI.D;
-    const z = Float32Array.from(AI.b);
-    for(let a=0;a<f.ids.length;a++){ const d=f.ids[a], v=f.vals[a];
-      for(let k=0;k<K;k++) z[k] += AI.W[k*D+d]*v; }
-    const occ = new Uint8Array(K);
+    z.set(AI.b);
+    for(let a=0;a<sm.ids.length;a++){
+      const base = sm.ids[a]*K, v = sm.vals[a];
+      for(let k=0;k<K;k++) z[k] += AI.W[base+k]*v;
+    }
     for(let k=0;k<K;k++) occ[k] = (1/(1+Math.exp(-z[k]))) > .5 ? 1 : 0;
     s += iouOf(occ, sm.y);
   }
@@ -1204,7 +1228,7 @@ function aiUiDone(src){
 }
 
 /* ── ذاكرة الأوزان في المتصفح (IndexedDB) ── */
-const AI_VER = "v2";
+const AI_VER = "v3";
 const aiKey = () => `${AI_VER}_${AI.N}_${AI.D}_${AI.EPOCHS}`;
 function aiIDB(){
   return new Promise(res => {
