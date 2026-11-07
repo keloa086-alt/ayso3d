@@ -1,0 +1,1037 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#08090c">
+<title>Ayso 3D — مولّد مجسّمات ثلاثية الأبعاد</title>
+<style>
+  :root{
+    --bg:#08090c; --bg2:#0d0f14; --panel:#111319; --panel2:#171a22; --line:#22262f;
+    --txt:#f0f2f7; --dim:#8b93a7; --dim2:#5c6577;
+    --acc:#6d6bff; --acc2:#a855f7; --ok:#38d39f; --warn:#f0a93b;
+    --r:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font-family:"Segoe UI",system-ui,-apple-system,Tahoma,sans-serif;
+    font-size:14px;-webkit-font-smoothing:antialiased}
+
+  /* ── شريط علوي ── */
+  .nav{position:sticky;top:0;z-index:50;background:rgba(8,9,12,.86);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line)}
+  .nav-in{max-width:1320px;margin:0 auto;padding:0 20px;height:58px;display:flex;align-items:center;gap:22px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.02em}
+  .brand svg{width:22px;height:22px;fill:url(#g1)}
+  .brand i{font-style:normal;color:var(--dim);font-weight:400}
+  .nav-links{display:flex;gap:4px;margin-inline-start:10px}
+  .nav-links a{color:var(--dim);text-decoration:none;font-size:13px;padding:7px 11px;border-radius:9px}
+  .nav-links a:hover{color:var(--txt);background:var(--panel)}
+  .nav-sp{flex:1}
+  .pill{font-size:11px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
+  .pill b{color:var(--ok);font-weight:500}
+  @media (max-width:820px){ .nav-links{display:none} }
+
+  .wrap{max-width:1320px;margin:0 auto;padding:22px 20px 60px}
+
+  /* ── رأس الصفحة ── */
+  .hero{text-align:center;padding:26px 0 20px}
+  .hero h1{font-size:clamp(26px,4vw,40px);font-weight:650;letter-spacing:-.03em;line-height:1.25}
+  .hero h1 em{font-style:normal;background:linear-gradient(100deg,#8b8bff,#c084fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{color:var(--dim);margin-top:10px;font-size:14px;line-height:1.7}
+  .badges{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+  .badge{font-size:11.5px;padding:5px 11px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--dim)}
+  .badge b{color:var(--txt);font-weight:500}
+
+  /* ── الاستوديو ── */
+  .studio{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:16px;align-items:start;margin-top:18px}
+  @media (max-width:980px){ .studio{grid-template-columns:1fr} .panel{order:-1} #view{aspect-ratio:4/3} }
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+  .viewbox{position:relative;overflow:hidden;border-radius:var(--r);
+    background:radial-gradient(circle at 50% 40%,#151824,#0a0b0f 72%);border:1px solid var(--line)}
+  #view{width:100%;aspect-ratio:1/1;display:block;touch-action:none;cursor:grab}
+  #view:active{cursor:grabbing}
+  .vtools{position:absolute;inset-inline-start:12px;top:12px;display:flex;flex-direction:column;gap:6px}
+  .vbtn{width:34px;height:34px;border-radius:9px;background:rgba(17,19,25,.86);border:1px solid var(--line);
+    color:var(--dim);display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(8px)}
+  .vbtn:hover{color:var(--txt);border-color:#333}
+  .vbtn.on{color:#c7c5ff;border-color:#3a3a86;background:rgba(109,107,255,.16)}
+  .vbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .vstat{position:absolute;inset-inline-end:12px;bottom:12px;font-size:11px;color:var(--dim2);
+    background:rgba(8,9,12,.7);padding:5px 9px;border-radius:8px;border:1px solid var(--line);direction:ltr}
+
+  /* ── لوحة الإعداد ── */
+  .panel{padding:14px}
+  .tabs{display:flex;gap:4px;background:var(--bg2);padding:4px;border-radius:11px;border:1px solid var(--line)}
+  .tabs button{flex:1;padding:8px 6px;border:0;border-radius:8px;background:transparent;color:var(--dim);
+    font:inherit;font-size:12.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+  .tabs button.on{background:var(--panel2);color:var(--txt);box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+  .tabs svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .field{margin-top:12px}
+  .field label{display:block;font-size:11.5px;color:var(--dim);margin-bottom:6px;letter-spacing:.01em}
+  textarea{width:100%;min-height:78px;resize:vertical;background:var(--bg2);border:1px solid var(--line);
+    border-radius:11px;padding:11px 12px;color:var(--txt);font:inherit;font-size:13.5px;line-height:1.65;outline:none}
+  textarea:focus{border-color:#3a3a86}
+  .sugg{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .sugg button{font-size:11.5px;padding:5px 10px;border-radius:8px;background:var(--bg2);border:1px solid var(--line);color:var(--dim);cursor:pointer;font-family:inherit}
+  .sugg button:hover{color:var(--txt);border-color:#333}
+  select,input[type=range]{width:100%}
+  select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;color:var(--txt);font-family:inherit;font-size:13px;outline:none}
+  input[type=range]{-webkit-appearance:none;height:4px;background:var(--line);border-radius:4px;margin-top:9px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:linear-gradient(135deg,#6d6bff,#a855f7);cursor:pointer;border:0}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .gen{width:100%;margin-top:14px;padding:12px;border:0;border-radius:11px;cursor:pointer;font:inherit;font-size:13.5px;font-weight:600;
+    background:linear-gradient(135deg,#6d6bff,#9b5cf6);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px}
+  .gen:hover{filter:brightness(1.08)}
+  .gen:disabled{opacity:.6;cursor:default}
+  .gen svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+  .drop{border:1px dashed #2c3140;border-radius:11px;padding:20px 12px;text-align:center;color:var(--dim);
+    font-size:12.5px;cursor:pointer;background:var(--bg2);line-height:1.7}
+  .drop:hover{border-color:#3f4570;color:var(--txt)}
+  .drop b{color:var(--txt);font-weight:500}
+  .expo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .expo button{padding:9px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);
+    color:var(--txt);font:inherit;font-size:12.5px;cursor:pointer}
+  .expo button:hover{background:#1e222c}
+
+  /* ── المعرض ── */
+  .sect{margin-top:34px}
+  .sect h2{font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .sect h2 span{color:var(--dim);font-weight:400;font-size:13px;margin-inline-start:8px}
+  .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:14px}
+  .gitem{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;
+    transition:border-color .15s,transform .15s}
+  .gitem:hover{border-color:#3a3a6a;transform:translateY(-2px)}
+  .gitem canvas{width:100%;aspect-ratio:1/1;display:block;background:radial-gradient(circle at 50% 45%,#151824,#0a0b0f)}
+  .gitem .cap{padding:8px 10px;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+  .gitem .cap span{color:var(--dim2);font-size:10.5px;direction:ltr}
+
+  /* ── الميزات ── */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+  @media (max-width:760px){ .steps{grid-template-columns:1fr} }
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+  .step i{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;font-style:normal;font-size:12.5px;
+    background:rgba(109,107,255,.16);border:1px solid #3a3a86;color:#c7c5ff}
+  .step b{display:block;margin-top:10px;font-size:14px;font-weight:600}
+  .step p{color:var(--dim);font-size:12.5px;line-height:1.75;margin-top:5px}
+  .feats{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:14px}
+  .feat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}
+  .feat .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;margin-bottom:11px;
+    background:rgba(109,107,255,.12);border:1px solid rgba(109,107,255,.22)}
+  .feat .ic svg{width:16px;height:16px;fill:none;stroke:#a9a7ff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .feat h3{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+  .feat h3 em{font-style:normal;font-size:9.5px;padding:2px 6px;border-radius:5px;background:rgba(56,211,159,.14);color:var(--ok);font-weight:500}
+  .feat p{color:var(--dim);font-size:12px;line-height:1.7;margin-top:7px}
+  .feat.soon{opacity:.62}
+  .feat.soon h3 em{background:rgba(240,169,59,.14);color:var(--warn)}
+
+  /* ── إضافات المحركات ── */
+  .dcc{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .dcc div{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:var(--panel);
+    border:1px solid var(--line);font-size:12.5px;color:var(--dim)}
+  .dcc b{color:var(--txt);font-weight:500}
+  .dcc i{width:7px;height:7px;border-radius:50%;background:var(--ok);display:block}
+
+  /* ── سجل النسخ ── */
+  .hist{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-top:12px}
+  .hcard{flex:0 0 116px;background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden;cursor:pointer}
+  .hcard.on{border-color:#5a58c8;box-shadow:0 0 0 2px rgba(109,107,255,.2)}
+  .hcard canvas{width:100%;aspect-ratio:1/1;display:block;background:#0b0d12}
+  .hcard b{display:block;font-size:11px;font-weight:500;padding:6px 8px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .foot{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;
+    color:var(--dim2);font-size:11.5px;flex-wrap:wrap;gap:10px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
+    background:#e9ebf2;color:#0b0d12;padding:10px 16px;border-radius:10px;font-size:12.5px;transition:.22s;z-index:99}
+  .toast.on{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b8bff"/><stop offset="1" stop-color="#c084fc"/></linearGradient>
+</defs></svg>
+
+<nav class="nav"><div class="nav-in">
+  <div class="brand">
+    <svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5zm0 2.3 6.6 3.7L12 11.7 5.4 8 12 4.3z"/></svg>
+    ayso<i>3d</i>
+  </div>
+  <div class="nav-links">
+    <a href="#studio">الاستوديو</a>
+    <a href="#gallery">المعرض</a>
+    <a href="#features">الميزات</a>
+    <a href="#export">التصدير</a>
+  </div>
+  <div class="nav-sp"></div>
+  <div class="pill">يعمل <b>بلا سيرفر</b></div>
+</div></nav>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>من فكرة إلى <em>مجسّم ثلاثي الأبعاد</em><br>في ثوانٍ</h1>
+    <p>اكتب وصفاً أو ارفع صورة — واحصل على مجسّم جاهز لـ Blender و Unity و Godot.</p>
+    <div class="badges">
+      <div class="badge"><b>~٢ ث</b> زمن التوليد</div>
+      <div class="badge"><b>OBJ · GLB · STL</b> تصدير</div>
+      <div class="badge"><b>٠ $</b> بلا حساب</div>
+    </div>
+  </div>
+
+  <!-- ═══ الاستوديو ═══ -->
+  <div class="studio" id="studio">
+    <div>
+      <div class="viewbox">
+        <canvas id="view" width="900" height="900"></canvas>
+        <div class="vtools">
+          <button class="vbtn on" id="tSpin" title="دوران تلقائي"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button>
+          <button class="vbtn" id="tWire" title="الأسلاك"><svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg></button>
+          <button class="vbtn" id="tGrid" title="الشبكة الأرضية"><svg viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
+          <button class="vbtn" id="tReset" title="إعادة الزاوية"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
+        </div>
+        <div class="vstat" id="vstat">—</div>
+      </div>
+
+      <div class="hist" id="hist"></div>
+    </div>
+
+    <div class="card panel">
+      <div class="tabs">
+        <button class="on" data-tab="text"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/></svg>نص</button>
+        <button data-tab="image"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg>صورة</button>
+        <button data-tab="multi"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>زوايا</button>
+      </div>
+
+      <!-- نص -->
+      <div class="pane" data-pane="text">
+        <div class="field">
+          <label>وصف المجسّم</label>
+          <textarea id="prompt" placeholder="مثال: بيت صغير بسقف أحمر · كرسي خشبي · صاروخ فضائي">بيت صغير</textarea>
+          <div class="sugg" id="sugg"></div>
+        </div>
+      </div>
+
+      <!-- صورة -->
+      <div class="pane" data-pane="image" hidden>
+        <div class="field">
+          <label>صورة أو ظل</label>
+          <div class="drop" id="dropImg">
+            <b>اسحب صورة هنا</b> أو اضغط للاختيار<br>
+            <span style="font-size:11px;color:var(--dim2)">PNG · JPG — الأفضل خلفية فاتحة وشكل واضح</span>
+          </div>
+          <input type="file" id="fileImg" accept="image/*" hidden>
+        </div>
+      </div>
+
+      <!-- زوايا -->
+      <div class="pane" data-pane="multi" hidden>
+        <div class="field">
+          <label>٢–٤ صور من زوايا مختلفة (أمامي / جانبي)</label>
+          <div class="drop" id="dropMulti">
+            <b>أضف الصور</b> — ندمجها لبناء حجم
+            <div id="multiList" style="margin-top:8px;font-size:11.5px;color:var(--dim2)">بلا صور</div>
+          </div>
+          <input type="file" id="fileMulti" accept="image/*" multiple hidden>
+        </div>
+      </div>
+
+      <div class="field two">
+        <div>
+          <label>الأسلوب</label>
+          <select id="styleSel">
+            <option value="default">طبيعي</option>
+            <option value="wood">خشبي</option>
+            <option value="metal">معدني</option>
+            <option value="pastel">باستيل</option>
+            <option value="mono">رمادي</option>
+          </select>
+        </div>
+        <div>
+          <label>الشكل</label>
+          <select id="modeSel">
+            <option value="solid">مجسّم ناعم</option>
+            <option value="voxel">فوكسل</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>عدد الأوجه التقريبي — <b id="polyLbl" style="color:var(--txt)">متوسط</b></label>
+        <input type="range" id="poly" min="0" max="2" step="1" value="1">
+      </div>
+
+      <button class="gen" id="go">
+        <svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="3.4"/></svg>
+        توليد المجسّم
+      </button>
+
+      <div class="expo">
+        <button id="exObj">تنزيل OBJ</button>
+        <button id="exGlb">تنزيل GLB</button>
+        <button id="exStl">تنزيل STL</button>
+        <button id="exPng">صورة PNG</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ كيف يعمل ═══ -->
+  <section class="band" id="how">
+    <div class="bhead"><h2>ثلاث خطوات</h2><p>من الفكرة إلى ملف يفتح في بلندرك — بلا حساب ولا سيرفر</p></div>
+    <div class="steps">
+      <div class="step"><i>1</i><b>أدخل</b><p>اكتب وصفاً بالعربي أو الإنكليزي، أو ارفع صورة، أو ٢–٤ زوايا لنفس الجسم.</p></div>
+      <div class="step"><i>2</i><b>ولّد</b><p>المحرّك يبني المجسّم داخل متصفحك: أوضاع صلبة أو فوكسل، أساليب خشب ومعدن وباستيل.</p></div>
+      <div class="step"><i>3</i><b>صدّر</b><p>OBJ أو GLB أو STL أو PNG — يفتح في Blender وUnity وGodot وغيرها.</p></div>
+    </div>
+  </section>
+
+  <!-- ═══ المعرض ═══ -->
+  <div class="sect" id="gallery">
+    <h2>المعرض <span>اضغط أي مجسّم لتحميله في الاستوديو</span></h2>
+    <div class="gal" id="gal"></div>
+  </div>
+
+  <!-- ═══ الميزات ═══ -->
+  <div class="sect" id="features">
+    <h2>الميزات <span>وش يشتغل هسه وشنو قادم</span></h2>
+    <div class="feats" id="feats"></div>
+  </div>
+
+  <!-- ═══ التصدير ═══ -->
+  <div class="sect" id="export">
+    <h2>يشتغل مع أدواتك</h2>
+    <div class="dcc">
+      <div><i></i><b>Blender</b> — OBJ / GLB</div>
+      <div><i></i><b>Unity</b> — FBX-less GLB</div>
+      <div><i></i><b>Godot 4</b> — GLB مباشر</div>
+      <div><i></i><b>Three.js</b> — GLB</div>
+      <div><i></i><b>الطباعة 3D</b> — STL</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>Ayso 3D — محرّك محلي داخل متصفحك · بلا سيرفر · بلا حساب</span>
+    <span>لا علاقة له بملفات Ayso الرئيسية</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════
+   المحرّك — هندسة إجرائية + فوكسل + تركيبات
+   ══════════════════════════════════════════════════════════════════ */
+const MESH = { v:[], f:[], c:[] };
+const RESET = () => { MESH.v.length = 0; MESH.f.length = 0; MESH.c.length = 0; };
+const AV = (x,y,z) => (MESH.v.push([x,y,z]), MESH.v.length - 1);
+const AF = (idx, col) => (MESH.f.push(idx), MESH.c.push(col));
+const hexRGB = h => [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
+
+function box(cx,cy,cz,w,h,d,col,rotY=0){
+  const hw=w/2,hh=h/2,hd=d/2,cs=Math.cos(rotY),sn=Math.sin(rotY),P=[];
+  for(const p of [[-hw,-hh,-hd],[hw,-hh,-hd],[hw,hh,-hd],[-hw,hh,-hd],[-hw,-hh,hd],[hw,-hh,hd],[hw,hh,hd],[-hw,hh,hd]]){
+    const x=p[0]*cs-p[2]*sn, z=p[0]*sn+p[2]*cs;
+    P.push(AV(cx+x, cy+p[1], cz+z));
+  }
+  AF([P[0],P[1],P[2],P[3]],col); AF([P[5],P[4],P[7],P[6]],col);
+  AF([P[4],P[0],P[3],P[7]],col); AF([P[1],P[5],P[6],P[2]],col);
+  AF([P[3],P[2],P[6],P[7]],col); AF([P[4],P[5],P[1],P[0]],col);
+}
+function cyl(cx,cy,cz,r,h,seg,col,axis){
+  seg = seg || 14;
+  const top=[], bot=[];
+  for(let i=0;i<seg;i++){
+    const a=i/seg*Math.PI*2, u=Math.cos(a)*r, v=Math.sin(a)*r;
+    if(axis === "z"){ top.push(AV(cx+u,cy+v,cz+h/2)); bot.push(AV(cx+u,cy+v,cz-h/2)); }
+    else { top.push(AV(cx+u,cy+h/2,cz+v)); bot.push(AV(cx+u,cy-h/2,cz+v)); }
+  }
+  for(let i=0;i<seg;i++){ const j=(i+1)%seg; AF([bot[i],bot[j],top[j],top[i]],col); }
+  AF(top.slice().reverse(),col); AF(bot.slice(),col);
+}
+function pyramid(cx,cy,cz,w,h,d,col){
+  const hw=w/2,hd=d/2;
+  const a=AV(cx-hw,cy,cz-hd), b=AV(cx+hw,cy,cz-hd), c=AV(cx+hw,cy,cz+hd), e=AV(cx-hw,cy,cz+hd), t=AV(cx,cy+h,cz);
+  AF([a,b,t],col); AF([b,c,t],col); AF([c,e,t],col); AF([e,a,t],col); AF([e,c,b,a],col);
+}
+function cone(cx,cy,cz,r,h,seg,col){
+  seg = seg || 14;
+  const ring=[]; for(let i=0;i<seg;i++){ const a=i/seg*Math.PI*2; ring.push(AV(cx+Math.cos(a)*r,cy,cz+Math.sin(a)*r)); }
+  const t=AV(cx,cy+h,cz);
+  for(let i=0;i<seg;i++) AF([ring[i],ring[(i+1)%seg],t],col);
+  AF(ring.slice(),col);
+}
+
+/* ── الأنماط اللونية ── */
+const STYLES = {
+  default:null,
+  wood:  { "#d8cfc0":"#9a7a52", "#a8503f":"#7d4a34", "#8a6a4b":"#8a6a4b", "#6e5238":"#6e5238", "#7d93a8":"#5f7285", "#8fa8c0":"#6d7f92", "#b23c3c":"#8a5a3a", "#9aa4b2":"#8a7358", "#e8e8ec":"#ddd0ba", "#c0432f":"#7d4a34", "#e6e2da":"#e8e2d4", "#3f7d4a":"#4d7a45", "#4c9459":"#5d8f50", "#59606d":"#6b5942", "#c9d2dd":"#b9a98c", "#3b3f47":"#5a4a36", "#8a6b3a":"#8a6b3a", "#b8bcc4":"#b3a98c" },
+  metal: { "#d8cfc0":"#9aa3b0", "#a8503f":"#6e7887", "#8a6a4b":"#8b95a3", "#6e5238":"#7d8794", "#7d93a8":"#a9c2d8", "#b23c3c":"#c05a5a", "#3f7d4a":"#5f9a7a" },
+  pastel:{ "#d8cfc0":"#efe3f5", "#a8503f":"#e6a2b8", "#8a6a4b":"#c9b6e0", "#6e5238":"#b9a6d0", "#3f7d4a":"#a8d8c0", "#4c9459":"#bfe6cf", "#b23c3c":"#f0a8a8", "#e8e8ec":"#ffffff", "#c0432f":"#f2b3a8" },
+  mono:  { "#d8cfc0":"#c9ced8", "#a8503f":"#9aa1ad", "#8a6a4b":"#aeb5c1", "#6e5238":"#98a0ad", "#3f7d4a":"#b6bdc9", "#4c9459":"#c4cbd6", "#b23c3c":"#a3aab6", "#e6e2da":"#dfe3ea", "#e8e8ec":"#eef1f6", "#c9d2dd":"#cfd6e0" },
+};
+function tint(col, style){
+  const m = STYLES[style];
+  if(!m) return col;
+  const k = col.toLowerCase();
+  return m[k] || m[col] || col;
+}
+
+/* ── الأشكال ── */
+const SHAPES = {
+  "كرسي":{key:"chair",build(s,C){ const w=.52*s,d=.5*s,sy=.46*s,cd=0.07*s,L="wood",C2="#6e5238";
+    box(0,sy,0,w,cd,d,C); for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box(x*(w/2-.05*s),sy/2,z*(d/2-.05*s),.06*s,sy,.06*s,C2);
+    box(0,sy+.35*s,-d/2+.03*s,w*.9,.72*s,cd,C);
+    for(const x of [-1,1]) box(x*(w/2-.03*s),.59*s,-d/2+.03*s,.05*s,1.18*s,cd*.9,C2); }},
+  "طاولة":{key:"table",build(s,C){ const w=1.15*s,d=.72*s,ty=.72*s;
+    box(0,ty,0,w,.08*s,d,C); for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box(x*(w/2-.08*s),ty/2,z*(d/2-.08*s),.09*s,ty,.09*s,"#6e5238"); }},
+  "بيت":{key:"house",build(s,C){ const w=1.35*s,h=.95*s,d=1.25*s;
+    box(0,h/2,0,w,h,d,C); pyramid(0,h,0,w*1.12,.62*s,d*1.12,"#a8503f");
+    box(0,.28*s,d/2+.01,.28*s,.56*s,.06*s,"#6e5238");
+    box(-w*.3,h*.66,d/2+.01,.26*s,.26*s,.05*s,"#7d93a8"); box(w*.3,h*.66,d/2+.01,.26*s,.26*s,.05*s,"#7d93a8"); }},
+  "شجرة":{key:"tree",build(s){ cyl(0,.45*s,0,.09*s,.9*s,12,"#8a6a4b");
+    box(0,1.05*s,0,.8*s,.5*s,.8*s,"#3f7d4a"); box(0,1.45*s,0,.58*s,.36*s,.58*s,"#4c9459"); box(0,1.72*s,0,.34*s,.26*s,.34*s,"#3f7d4a"); }},
+  "سيارة":{key:"car",build(s,C){ box(0,.42*s,0,1.62*s,.4*s,.9*s,C); box(-.04*s,.7*s,0,.88*s,.3*s,.82*s,C);
+    box(-.04*s,.71*s,.42*s,.8*s,.24*s,.02*s,"#7d93a8"); box(-.04*s,.71*s,-.42*s,.72*s,.22*s,.02*s,"#7d93a8");
+    for(const x of [-1,1]) box(x*.4*s,.7*s,.42*s,.02*s,.24*s,.02*s,"#7d93a8");
+    for(const [x,z] of [[-.51,1],[.51,1],[-.51,-1],[.51,-1]]) cyl(x*s,.18*s,z*.5*s,.18*s,.09*s,14,"#1d2026","z"); }},
+  "كأس":{key:"cup",build(s){ cyl(0,.21*s,0,.19*s,.42*s,20,"#e6e2da"); cyl(0,.43*s,0,.2*s,.03*s,20,"#cfd6de");
+    cyl(0,.435*s,0,.165*s,.02*s,20,"#8e97a3");
+    box(.15*s,.33*s,0,.16*s,.05*s,.05*s,"#e6e2da"); box(.15*s,.11*s,0,.16*s,.05*s,.05*s,"#e6e2da");
+    box(.24*s,.22*s,0,.05*s,.27*s,.05*s,"#e6e2da"); }},
+  "صاروخ":{key:"rocket",build(s){ cyl(0,.62*s,0,.21*s,1.05*s,18,"#e8e8ec"); cone(0,1.145*s,0,.21*s,.42*s,18,"#c0432f");
+    box(-.22*s,.18*s,0,.06*s,.42*s,.3*s,"#c0432f"); box(.22*s,.18*s,0,.06*s,.42*s,.3*s,"#c0432f");
+    cyl(0,1.0*s,0,.16*s,.03*s,18,"#59606d"); box(0,.12*s,0,.26*s,.16*s,.26*s,"#9aa4b2"); }},
+  "سيف":{key:"sword",build(s){ box(0,.95*s,0,.09*s,1.1*s,.025*s,"#c9d2dd"); pyramid(0,1.5*s,0,.09*s,.14*s,.025*s,"#c9d2dd");
+    box(0,.39*s,0,.46*s,.05*s,.07*s,"#8a6b3a"); box(0,.25*s,0,.07*s,.24*s,.07*s,"#3b3f47"); box(0,.12*s,0,.13*s,.08*s,.13*s,"#8a6b3a"); }},
+  "مصباح":{key:"lamp",build(s){ box(0,.03*s,0,.36*s,.06*s,.36*s,"#3b3f47"); cyl(0,.55*s,0,.035*s,1.05*s,10,"#59606d");
+    cone(0,.85*s,0,.34*s,.42*s,16,"#e6e2da"); cyl(0,.86*s,0,.3*s,.03*s,16,"#e8e8ec"); }},
+  "برج":{key:"tower",build(s){ box(0,.45*s,0,.9*s,.9*s,.9*s,"#b8bcc4"); box(0,1.12*s,0,.7*s,.44*s,.7*s,"#9aa4b2");
+    box(0,1.52*s,0,.5*s,.36*s,.5*s,"#b8bcc4"); box(0,1.82*s,0,.3*s,.26*s,.3*s,"#9aa4b2"); }},
+  "مكعب":{key:"box",build(s){ box(0,.5*s,0,1*s,1*s,1*s,"#7d93a8"); }},
+};
+const CLASSES = Object.keys(SHAPES);
+const KEYWORDS = {
+  "كرسي":/(كرسي|chair|مقعد|seat)/, "طاولة":/(طاول|table|ميز|desk)/, "بيت":/(بيت|منزل|دار|house|home)/,
+  "شجرة":/(شجر|tree|نخل|plant)/, "سيارة":/(سيار|car|عجل|vehicle)/, "كأس":/(كاس|كأس|كوب|cup|mug|glass|فنجان)/,
+  "صاروخ":/(صاروخ|rocket|فضاء|space)/, "سيف":/(سيف|sword|سكين|knife|blade)/, "مصباح":/(مصباح|lamp|نور|light|شمع)/,
+  "برج":/(برج|tower|عمار|building)/, "مكعب":/(مكعب|cube|صندوق|box|block)/,
+};
+const norm = s => String(s||"").toLowerCase().replace(/[\u064B-\u0652]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").replace(/\s+/g," ").trim();
+const sizeFrom = t => { const s = norm(t);
+  if(/(كبير|ضخم|عالي|طويل|big|large|huge|tall)/.test(s)) return 1.35;
+  if(/(صغير|زغير|small|tiny|mini)/.test(s)) return .74;
+  return 1; };
+
+/* ── بناء ── */
+let CURRENT = { cls:"بيت", s:1, label:"بيت", kinds:["بيت"] };
+function buildSub(cls, s, col, ox=0, oz=0){
+  const start = MESH.v.length;
+  SHAPES[cls].build(s, col);
+  for(let i=start;i<MESH.v.length;i++){ MESH.v[i][0]+=ox; MESH.v[i][2]+=oz; }
+}
+function buildScene(order, s, style){
+  RESET();
+  const baseCol = "#d8cfc0";
+  if(order.length === 1){ buildSub(order[0], s, tint(SHAPES[order[0]].build.length ? baseCol : baseCol, style)); }
+  else { buildSub(order[0], s*.78, tint(baseCol,style), -.62, 0); buildSub(order[1], s*.68, tint(baseCol,style), .66, .1); }
+  /* تطبيق النمط على كل الألوان */
+  if(style && style !== "default"){ for(let i=0;i<MESH.c.length;i++) MESH.c[i] = tint(MESH.c[i], style); }
+}
+function detectAll(t){ const n = norm(t); const out = [];
+  for(const [k,re] of Object.entries(KEYWORDS)) if(re.test(n)) out.push(k);
+  return out; }
+
+/* ══════════════ العرض ══════════════ */
+const view = document.getElementById("view");
+const ctx = view.getContext("2d");
+const V = { yaw:-0.62, pitch:-0.42, zoom:1, spin:true, wire:false, grid:true, drag:null };
+
+function resizeView(){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const r = view.getBoundingClientRect();
+  view.width = Math.max(320, Math.round(r.width*dpr));
+  view.height = Math.max(320, Math.round(r.width*dpr));
+  draw();
+}
+function project(p, W, H, scale, cy){
+  const [x,y,z] = p;
+  const Y = y - cy;
+  const cs = Math.cos(V.yaw), sn = Math.sin(V.yaw), cp = Math.cos(V.pitch), sp = Math.sin(V.pitch);
+  const x1 = x*cs - z*sn, z1 = x*sn + z*cs;
+  const y2 = Y*cp - z1*sp, z2 = Y*sp + z1*cp;
+  const f = 9/(9 + z2*.22);
+  return { x: W/2 + x1*scale*f, y: H/2 - y2*scale*f, z: z2 };
+}
+
+/* ── مصيّر z-buffer (بدل ترتيب الوجوه) ── */
+let ZBUF = null, ZW = 0, ZH = 0, ZID = null;
+const LIGHT = (()=>{ const L=[0.42,0.86,0.52], n=Math.hypot(...L); return L.map(a=>a/n); })();
+function shadeFace(mesh, i){
+  const f = mesh.f[i], p0 = mesh.v[f[0]], p1 = mesh.v[f[1]], p2 = mesh.v[f[2]];
+  const u=[p1[0]-p0[0],p1[1]-p0[1],p1[2]-p0[2]], w=[p2[0]-p0[0],p2[1]-p0[1],p2[2]-p0[2]];
+  let n=[u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]];
+  const nl=Math.hypot(n[0],n[1],n[2])||1;
+  const d=Math.abs((n[0]*LIGHT[0]+n[1]*LIGHT[1]+n[2]*LIGHT[2])/nl)*.92;
+  const sh=.4+.78*d, c=hexRGB(mesh.c[i]||"#cccccc");
+  return [Math.min(255,c[0]*255*sh)|0, Math.min(255,c[1]*255*sh)|0, Math.min(255,c[2]*255*sh)|0];
+}
+function renderMesh(g, W, H, mesh, proj, wire){
+  if(!mesh.f.length) return;
+  if(!ZBUF || ZW!==W || ZH!==H){ ZBUF=new Float32Array(W*H); ZW=W; ZH=H;
+    ZID = g.createImageData(W,H); }
+  ZBUF.fill(1e9);
+  const src = g.getImageData(0,0,W,H);
+  const id = src.data;
+  const vis = [];
+  for(let i=0;i<mesh.f.length;i++){
+    const f = mesh.f[i], col = shadeFace(mesh, i);
+    let hitAny = false;
+    for(let k=1;k<f.length-1;k++){
+      const A=proj[f[0]], B=proj[f[k]], Cc=proj[f[k+1]];
+      if(rasterTri(id,W,ZBUF,A,B,Cc,col)) hitAny = true;
+    }
+    if(hitAny) vis.push({ i, col });
+  }
+  g.putImageData(src,0,0);
+  if(wire){
+    g.strokeStyle = "rgba(150,170,255,.8)"; g.lineWidth = 1;
+    for(const {i} of vis){
+      const f = mesh.f[i];
+      let cxs=0, cys=0, czs=0;
+      for(const vi of f){ cxs += proj[vi].x; cys += proj[vi].y; czs += proj[vi].z; }
+      const n2 = f.length, px = Math.round(cxs/n2), py = Math.round(cys/n2), pz = czs/n2;
+      if(px<0||py<0||px>=W||py>=H) continue;
+      if(ZBUF[py*W+px] > pz + 1e-3) continue;   /* وجوه مخفيّة لا تُرسم */
+      const A0=proj[f[0]], B0=proj[f[1]], C0=proj[f[2]];
+      if((B0.x-A0.x)*(C0.y-A0.y) - (C0.x-A0.x)*(B0.y-A0.y) >= 0) continue;  /* ظهر الوجه */
+      g.beginPath(); g.moveTo(proj[f[0]].x, proj[f[0]].y);
+      for(let k=1;k<f.length;k++) g.lineTo(proj[f[k]].x, proj[f[k]].y);
+      g.closePath(); g.stroke();
+    }
+  }
+}
+function rasterTri(d, W, ZB, A, B, C, col){
+  const ax=A.x, ay=A.y, bx=B.x, by=B.y, cx=C.x, cy=C.y;
+  const den = (by-cy)*(ax-cx) + (cx-bx)*(ay-cy);
+  if(Math.abs(den) < 1e-7) return false;
+  const inv = 1/den;
+  let minx = Math.max(0, Math.floor(Math.min(ax,bx,cx)));
+  let maxx = Math.min(W-1, Math.ceil(Math.max(ax,bx,cx)));
+  let miny = Math.max(0, Math.floor(Math.min(ay,by,cy)));
+  let maxy = Math.min((W? (ZB.length/W)-1 : 0), Math.ceil(Math.max(ay,by,cy)));
+  const r=col[0], gg=col[1], bb=col[2];
+  let hit=false;
+  for(let y=miny;y<=maxy;y++){
+    const py=y+.5;
+    for(let x=minx;x<=maxx;x++){
+      const px=x+.5;
+      const w0 = ((by-cy)*(px-cx) + (cx-bx)*(py-cy)) * inv;
+      if(w0 < -1e-6) continue;
+      const w1 = ((cy-ay)*(px-cx) + (ax-cx)*(py-cy)) * inv;
+      if(w1 < -1e-6) continue;
+      const w2 = 1 - w0 - w1;
+      if(w2 < -1e-6) continue;
+      const z = w0*A.z + w1*B.z + w2*C.z;
+      const idx = y*W + x;
+      if(z < ZB[idx]){ ZB[idx]=z; const o=idx*4; d[o]=r; d[o+1]=gg; d[o+2]=bb; d[o+3]=255; hit=true; }
+    }
+  }
+  return hit;
+}
+
+function draw(){
+  const W = view.width, H = view.height;
+  ctx.clearRect(0,0,W,H);
+  if(!MESH.f.length) return;
+
+  let minY=1e9,maxY=-1e9,maxR=.001;
+  for(const v of MESH.v){ if(v[1]<minY)minY=v[1]; if(v[1]>maxY)maxY=v[1]; const r=Math.hypot(v[0],v[2]); if(r>maxR)maxR=r; }
+  const cy=(minY+maxY)/2, hgt=Math.max(.6,maxY-minY);
+  const scale = Math.min(W,H)/(Math.max(hgt,maxR*2)*2.15)*V.zoom;
+
+  if(V.grid){
+    ctx.strokeStyle = "rgba(120,130,160,.16)"; ctx.lineWidth = 1;
+    const g = 9, step = scale*.55;
+    for(let i=-g;i<=g;i++){
+      const a = project([i*.5, minY, -g*.5], W, H, scale, cy);
+      const b = project([i*.5, minY,  g*.5], W, H, scale, cy);
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+      const c = project([-g*.5, minY, i*.5], W, H, scale, cy);
+      const d = project([ g*.5, minY, i*.5], W, H, scale, cy);
+      ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.stroke();
+    }
+  }
+
+  const proj = MESH.v.map(p => project(p, W, H, scale, cy));
+  /* توسيط الصورة على حدود المجسّم */
+  let bx0=1e9,bx1=-1e9,by0=1e9,by1=-1e9;
+  for(const q of proj){ if(q.x<bx0)bx0=q.x; if(q.x>bx1)bx1=q.x; if(q.y<by0)by0=q.y; if(q.y>by1)by1=q.y; }
+  const dx = W/2 - (bx0+bx1)/2, dy = H/2 - (by0+by1)/2;
+  for(const q of proj){ q.x += dx; q.y += dy; }
+
+  /* ظل على الأرض تحت قاعدة المجسّم */
+  let sx=0, sy=0, sn=0;
+  for(let k=0;k<MESH.v.length;k++) if(MESH.v[k][1] < minY + .02){ sx += proj[k].x; sy += proj[k].y; sn++; }
+  if(sn){
+    ctx.save(); ctx.globalAlpha = .2; ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(sx/sn, sy/sn, Math.max(18,maxR*scale*.9), Math.max(6,maxR*scale*.26), 0, 0, Math.PI*2);
+    ctx.fill(); ctx.restore();
+  }
+
+  renderMesh(ctx, W, H, MESH, proj, V.wire);
+}
+
+/* تفاعل */
+view.addEventListener("pointerdown", e => { V.drag = {x:e.clientX, y:e.clientY, yaw:V.yaw, pitch:V.pitch}; view.setPointerCapture(e.pointerId); });
+view.addEventListener("pointermove", e => {
+  if(!V.drag) return;
+  V.yaw = V.drag.yaw + (e.clientX-V.drag.x)*.008;
+  V.pitch = Math.max(-1.32, Math.min(.18, V.drag.pitch + (e.clientY-V.drag.y)*.006));
+  draw();
+});
+view.addEventListener("pointerup", ()=> V.drag = null);
+view.addEventListener("wheel", e => { e.preventDefault(); V.zoom = Math.max(.5, Math.min(2.6, V.zoom*(e.deltaY>0?.93:1.07))); draw(); }, {passive:false});
+
+let spinTimer = null;
+function startSpin(){
+  stopSpin();
+  spinTimer = setInterval(()=>{ if(!V.drag && V.spin){ V.yaw += .008; draw(); } }, 40);
+}
+function stopSpin(){ if(spinTimer) clearInterval(spinTimer); spinTimer = null; }
+
+/* ══════════════ التوليد ══════════════ */
+const hist = [];
+function updateStat(){
+  let tris = 0; for(const f of MESH.f) tris += f.length - 2;
+  document.getElementById("vstat").textContent =
+    `${MESH.v.length}v · ${tris}t · ${CURRENT.label}`;
+}
+function generate(text, styleOverride){
+  const t = String(text||"").trim();
+  if(!t) return;
+  const style = styleOverride || document.getElementById("styleSel").value;
+  const mode = document.getElementById("modeSel").value;
+  let order = detectAll(t);
+  if(!order.length) order = ["مكعب"];
+  order = order.slice(0,2);
+  const s = sizeFrom(t);
+  if(mode === "voxel"){ CURRENT = { cls:order[0], s, label:t.slice(0,18), kinds:order }; buildVoxelScene(order, s, style); }
+  else { buildScene(order, s, style); CURRENT = { cls:order[0], s, label:t.slice(0,18), kinds:order }; }
+  draw(); updateStat();
+  addHist(t, style, mode);
+}
+function addHist(t, style, mode){
+  hist.unshift({ t, style, mode });
+  if(hist.length > 8) hist.pop();
+  renderHist();
+}
+function renderHist(){
+  const el = document.getElementById("hist");
+  el.innerHTML = "";
+  hist.forEach((h, idx) => {
+    const d = document.createElement("div");
+    d.className = "hcard" + (idx===0 ? " on" : "");
+    const c = document.createElement("canvas"); c.width = 200; c.height = 200;
+    d.appendChild(c);
+    const b = document.createElement("b"); b.textContent = h.t; d.appendChild(b);
+    d.onclick = () => {
+      document.getElementById("prompt").value = h.t;
+      document.getElementById("styleSel").value = h.style;
+      document.getElementById("modeSel").value = h.mode;
+      generateDark(h, c);
+      if(h.mode === "voxel") buildVoxelScene(detectAll(h.t).length?detectAll(h.t):["مكعب"], sizeFrom(h.t), h.style);
+      else buildScene(detectAll(h.t).length?detectAll(h.t):["مكعب"], sizeFrom(h.t), h.style);
+      draw(); updateStat();
+      [...el.children].forEach(x=>x.classList.remove("on")); d.classList.add("on");
+    };
+    el.appendChild(d);
+    generateDark(h, c);
+  });
+}
+/* تصيير مصغّر مستقل لكل بطاقة سجل */
+function generateDark(h, canvas){
+  const saved = MESH.v.map(v=>v.slice()), sf = MESH.f.slice(), sc = MESH.c.slice();
+  const order = detectAll(h.t); const s = sizeFrom(h.t);
+  buildScene(order.length?order:["مكعب"], s, h.style);
+  thumb(canvas, MESH);
+  MESH.v.length = 0; MESH.f.length = 0; MESH.c.length = 0;
+  for(const v of saved) MESH.v.push(v); for(const f of sf) MESH.f.push(f); for(const c of sc) MESH.c.push(c);
+}
+function thumb(canvas, mesh){
+  const g = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  g.clearRect(0,0,W,H);
+  if(!mesh.f.length) return;
+  let minY=1e9,maxY=-1e9,maxR=.001;
+  for(const v of mesh.v){ if(v[1]<minY)minY=v[1]; if(v[1]>maxY)maxY=v[1]; const r=Math.hypot(v[0],v[2]); if(r>maxR)maxR=r; }
+  const cy=(minY+maxY)/2, hgt=Math.max(.6,maxY-minY);
+  const scale = Math.min(W,H)/(Math.max(hgt,maxR*2)*1.78);
+  const yaw=-0.62, pitch=-0.42;
+  const cs=Math.cos(yaw), sn=Math.sin(yaw), cp=Math.cos(pitch), sp=Math.sin(pitch);
+  const proj = mesh.v.map(([x,y,z])=>{
+    const Y=y-cy; const x1=x*cs-z*sn, z1=x*sn+z*cs; const y2=Y*cp-z1*sp, z2=Y*sp+z1*cp;
+    const f=9/(9+z2*.22);
+    return {x:W/2+x1*scale*f, y:H/2-y2*scale*f, z:z2};
+  });
+  let bx0=1e9,bx1=-1e9,by0=1e9,by1=-1e9;
+  for(const q of proj){ if(q.x<bx0)bx0=q.x; if(q.x>bx1)bx1=q.x; if(q.y<by0)by0=q.y; if(q.y>by1)by1=q.y; }
+  const dx=W/2-(bx0+bx1)/2, dy=H/2-(by0+by1)/2;
+  for(const q of proj){ q.x+=dx; q.y+=dy; }
+  renderMesh(g, W, H, mesh, proj, false);
+}
+
+function buildVoxelScene(order, s, style){
+  const savedV = MESH.v.map(v=>v.slice()), savedF = MESH.f.slice(), savedC = MESH.c.slice();
+  buildScene(order, s, style);
+  const N = 24;                       /* دقّة الشبكة */
+  let minX=1e9,minY=1e9,minZ=1e9,maxX=-1e9,maxY=-1e9,maxZ=-1e9;
+  for(const v of MESH.v){ minX=Math.min(minX,v[0]);maxX=Math.max(maxX,v[0]);
+    minY=Math.min(minY,v[1]);maxY=Math.max(maxY,v[1]);minZ=Math.min(minZ,v[2]);maxZ=Math.max(maxZ,v[2]); }
+  const span = Math.max(maxX-minX, maxY-minY, maxZ-minZ) || 1;
+  const step = span / N;
+  const nx = Math.ceil((maxX-minX)/step)+3, ny = Math.ceil((maxY-minY)/step)+3, nz = Math.ceil((maxZ-minZ)/step)+3;
+  const idx = (i,j,k) => (k*ny + j)*nx + i;
+  const cell = new Uint8Array(nx*ny*nz);          /* 1 = سطح */
+  /* 1) نرسم سطح المجسّم على الشبكة */
+  for(const f of MESH.f){
+    for(let k=1;k<f.length-1;k++){
+      const p0=MESH.v[f[0]], p1=MESH.v[f[k]], p2=MESH.v[f[k+1]];
+      const steps = 16;
+      for(let a=0;a<=steps;a++) for(let b=0;b<=steps-a;b++){
+        const t1=a/steps, t2=b/steps, t3=1-t1-t2;
+        const x=p0[0]*t3+p1[0]*t1+p2[0]*t2, y=p0[1]*t3+p1[1]*t1+p2[1]*t2, z=p0[2]*t3+p1[2]*t1+p2[2]*t2;
+        const i=Math.round((x-minX)/step)+1, j=Math.round((y-minY)/step)+1, m=Math.round((z-minZ)/step)+1;
+        if(i<0||j<0||m<0||i>=nx||j>=ny||m>=nz) continue;
+        cell[idx(i,j,m)] = 1;
+        cell[idx(Math.min(nx-1,i+1),j,m)] = 1; cell[idx(Math.max(0,i-1),j,m)] = 1;
+        cell[idx(i,Math.min(ny-1,j+1),m)] = 1; cell[idx(i,Math.max(0,j-1),m)] = 1;
+        cell[idx(i,j,Math.min(nz-1,m+1))] = 1; cell[idx(i,j,Math.max(0,m-1))] = 1;
+      }
+    }
+  }
+  /* 2) نعبّي الخارج (flood fill) — الباقي = جسم صلب */
+  const out = new Uint8Array(nx*ny*nz);
+  const stack = [];
+  for(let j=0;j<ny;j++) for(let m=0;m<nz;m++) for(let i=0;i<nx;i++){
+    if(i===0||j===0||m===0||i===nx-1||j===ny-1||m===nz-1){ const id=idx(i,j,m); if(!cell[id] && !out[id]){ out[id]=1; stack.push(id); } }
+  }
+  while(stack.length){
+    const id = stack.pop();
+    const i = id%nx, j = Math.floor(id/nx)%ny, k = Math.floor(id/(nx*ny));
+    const nb = [[i-1,j,k],[i+1,j,k],[i,j-1,k],[i,j+1,k],[i,j,k-1],[i,j,k+1]];
+    for(const [a,b,c] of nb){
+      if(a<0||b<0||c<0||a>=nx||b>=ny||c>=nz) continue;
+      const nid = idx(a,b,c);
+      if(out[nid] || cell[nid]) continue;
+      out[nid] = 1; stack.push(nid);
+    }
+  }
+  const solid = (i,j,k) => (i>=0&&j>=0&&k>=0&&i<nx&&j<ny&&k<nz) ? (!out[idx(i,j,k)] ? 1 : 0) : 0;
+
+  /* 3) نبني الوجوه الخارجية فقط */
+  RESET();
+  const base = tint("#d8cfc0", style), dark = tint("#b8b0a2", style);
+  const h = step*.5;
+  for(let k=0;k<nz;k++) for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+    if(!solid(i,j,k)) continue;
+    const cx = minX + (i-1)*step, cy2 = minY + (j-1)*step, cz = minZ + (k-1)*step;
+    if(!solid(i,j+1,k)){ /* سطح أعلى */
+      const q=[AV(cx-h,cy2+h,cz-h),AV(cx+h,cy2+h,cz-h),AV(cx+h,cy2+h,cz+h),AV(cx-h,cy2+h,cz+h)]; AF(q, base);
+    }
+    if(!solid(i,j-1,k)){
+      const q=[AV(cx-h,cy2-h,cz-h),AV(cx-h,cy2-h,cz+h),AV(cx+h,cy2-h,cz+h),AV(cx+h,cy2-h,cz-h)]; AF(q, dark);
+    }
+    if(!solid(i+1,j,k)){
+      const q=[AV(cx+h,cy2-h,cz-h),AV(cx+h,cy2-h,cz+h),AV(cx+h,cy2+h,cz+h),AV(cx+h,cy2+h,cz-h)]; AF(q, base);
+    }
+    if(!solid(i-1,j,k)){
+      const q=[AV(cx-h,cy2-h,cz+h),AV(cx-h,cy2-h,cz-h),AV(cx-h,cy2+h,cz-h),AV(cx-h,cy2+h,cz+h)]; AF(q, base);
+    }
+    if(!solid(i,j,k+1)){
+      const q=[AV(cx-h,cy2-h,cz+h),AV(cx+h,cy2-h,cz+h),AV(cx+h,cy2+h,cz+h),AV(cx-h,cy2+h,cz+h)]; AF(q, base);
+    }
+    if(!solid(i,j,k-1)){
+      const q=[AV(cx+h,cy2-h,cz-h),AV(cx-h,cy2-h,cz-h),AV(cx-h,cy2+h,cz-h),AV(cx+h,cy2+h,cz-h)]; AF(q, base);
+    }
+  }
+  if(!MESH.f.length){ for(const v of savedV) MESH.v.push(v); for(const f of savedF) MESH.f.push(f); for(const c of savedC) MESH.c.push(c); }
+}
+
+/* ══════════════ التصدير ══════════════ */
+function download(blob, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  toast("تم التنزيل: " + name);
+}
+function toOBJ(){
+  let o = "# ayso3d\n# " + CURRENT.label + "\no model\n";
+  for(const v of MESH.v) o += `v ${v[0].toFixed(5)} ${v[1].toFixed(5)} ${v[2].toFixed(5)}\n`;
+  const mats = {};
+  MESH.f.forEach((f,i)=>{ const c = MESH.c[i]; const key = c; if(!mats[key]) mats[key] = []; mats[key].push(f.map(x=>x+1).join(" ")); });
+  let mi = 1;
+  for(const key in mats){ o += `usemtl m${mi}\n`; for(const f of mats[key]) o += `f ${f}\n`; mi++; }
+  return o;
+}
+function toSTL(){
+  /* STL ثنائي */
+  const tris = [];
+  for(const f of MESH.f) for(let k=1;k<f.length-1;k++) tris.push([f[0],f[k],f[k+1]]);
+  const buf = new ArrayBuffer(84 + tris.length*50);
+  const dv = new DataView(buf);
+  dv.setUint32(80, tris.length, true);
+  let off = 84;
+  for(const t of tris){
+    const [a,b,c] = t.map(i=>MESH.v[i]);
+    const u = [b[0]-a[0],b[1]-a[1],b[2]-a[2]], w = [c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+    let n = [u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]];
+    const nl = Math.hypot(...n)||1; n = n.map(x=>x/nl);
+    dv.setFloat32(off, n[0], true); dv.setFloat32(off+4, n[1], true); dv.setFloat32(off+8, n[2], true);
+    let p = off+12;
+    for(const v of [a,b,c]){ dv.setFloat32(p, v[0], true); dv.setFloat32(p+4, v[1], true); dv.setFloat32(p+8, v[2], true); p += 12; }
+    dv.setUint16(off+48, 0, true);
+    off += 50;
+  }
+  return new Blob([buf], { type:"model/stl" });
+}
+function toGLB(){
+  const positions = new Float32Array(MESH.v.length*3);
+  MESH.v.forEach((v,i)=>{ positions[i*3]=v[0]; positions[i*3+1]=v[1]; positions[i*3+2]=v[2]; });
+  const indices = [];
+  for(const f of MESH.f) for(let k=1;k<f.length-1;k++) indices.push(f[0], f[k], f[k+1]);
+  const idxArr = new Uint32Array(indices);
+  const pad4 = n => (n+3) & ~3;
+  const pb = positions.byteLength, ib = idxArr.byteLength;
+  const bin = new Uint8Array(pad4(pb)+pad4(ib));
+  bin.set(new Uint8Array(positions.buffer), 0);
+  bin.set(new Uint8Array(idxArr.buffer), pad4(pb));
+  let mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
+  for(const v of MESH.v) for(let k=0;k<3;k++){ if(v[k]<mn[k])mn[k]=v[k]; if(v[k]>mx[k])mx[k]=v[k]; }
+  const gltf = {
+    asset:{version:"2.0", generator:"ayso3d"},
+    scene:0, scenes:[{nodes:[0]}], nodes:[{mesh:0, name:CURRENT.label}],
+    meshes:[{primitives:[{attributes:{POSITION:0}, indices:1, material:0}]}],
+    materials:[{pbrMetallicRoughness:{baseColorFactor:[.72,.74,.8,1], metallicFactor:.05, roughnessFactor:.8}}],
+    buffers:[{byteLength: bin.byteLength}],
+    bufferViews:[{buffer:0, byteOffset:0, byteLength:pb, target:34962},
+                 {buffer:0, byteOffset:pad4(pb), byteLength:ib, target:34963}],
+    accessors:[{bufferView:0, componentType:5126, count:MESH.v.length, type:"VEC3", min:mn, max:mx},
+               {bufferView:1, componentType:5125, count:idxArr.length, type:"SCALAR"}]
+  };
+  let json = JSON.stringify(gltf); while(json.length % 4) json += " ";
+  const jb = new TextEncoder().encode(json);
+  const total = 12+8+jb.byteLength+8+bin.byteLength;
+  const out = new ArrayBuffer(total), dv2 = new DataView(out), u8 = new Uint8Array(out);
+  let p = 0;
+  dv2.setUint32(p,0x46546C67,true); p+=4; dv2.setUint32(p,2,true); p+=4; dv2.setUint32(p,total,true); p+=4;
+  dv2.setUint32(p,jb.byteLength,true); p+=4; dv2.setUint32(p,0x4E4F534A,true); p+=4;
+  u8.set(jb,p); p+=jb.byteLength;
+  dv2.setUint32(p,bin.byteLength,true); p+=4; dv2.setUint32(p,0x004E4942,true); p+=4;
+  u8.set(bin,p);
+  return new Blob([out], { type:"model/gltf-binary" });
+}
+
+/* ══════════════ صورة ← مجسّم ══════════════ */
+function imageToMesh(img, cx0){
+  const N = 40;
+  const cnv = document.createElement("canvas"); cnv.width = N; cnv.height = N;
+  const c2 = cnv.getContext("2d"); c2.drawImage(img, 0, 0, N, N);
+  const px = c2.getImageData(0,0,N,N).data;
+  const filled = (x,y) => { const i = (y*N+x)*4; const a = px[i+3]/255;
+    const lum = (px[i]*.299 + px[i+1]*.587 + px[i+2]*.114)/255;
+    return a > .35 && lum < .84; };
+  RESET();
+  const cell = (cx0 || 1.7)/N;
+  let boxes = 0;
+  for(let y=0;y<N;y++){
+    let x=0;
+    while(x<N){
+      if(!filled(x,y)){ x++; continue; }
+      let x2=x; while(x2+1<N && filled(x2+1,y)) x2++;
+      const w=(x2-x+1)*cell, cx=(x+x2+1)/2*cell-.85, cy=1.7-(y+.5)*cell;
+      box(cx, cy, 0, w, cell*.98, .38, "#c9d2dd"); boxes++;
+      x = x2+1;
+    }
+  }
+  return boxes;
+}
+/* زوايا متعددة: تقاطع مسقطين ← حجم */
+function multiToMesh(imgs){
+  const N = 30;
+  const masks = imgs.map(img => {
+    const cnv = document.createElement("canvas"); cnv.width=N; cnv.height=N;
+    const c2 = cnv.getContext("2d"); c2.drawImage(img,0,0,N,N);
+    const px = c2.getImageData(0,0,N,N).data;
+    const m = new Uint8Array(N*N);
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const i=(y*N+x)*4, a=px[i+3]/255, lum=(px[i]*.299+px[i+1]*.587+px[i+2]*.114)/255;
+      m[y*N+x] = (a>.35 && lum<.84) ? 1 : 0;
+    }
+    return m;
+  });
+  RESET();
+  const step = 1.9/N;
+  const A = masks[0], B = masks[1] || masks[0];
+  const col = "#c9d2dd";
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    if(!A[y*N+x]) continue;
+    for(let z=0;z<N;z++){
+      if(!B[(N-1-y)*N+z]) continue;      /* المسقط الجانبي يقيّد العمق */
+      box(x*step-.95, (N-1-y)*step, z*step-.95, step*.98, step*.98, step*.98, col);
+    }
+  }
+  return MESH.f.length;
+}
+
+/* ══════════════ الواجهة ══════════════ */
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove("on"), 1900);
+}
+/* تبويبات */
+let TAB = "text";
+document.querySelectorAll(".tabs button").forEach(b => {
+  b.onclick = () => {
+    TAB = b.dataset.tab;
+    document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on", x===b));
+    document.querySelectorAll(".pane").forEach(p => p.hidden = p.dataset.pane !== TAB);
+  };
+});
+/* اقتراحات */
+const SUGG = ["بيت صغير","كرسي خشبي","شجرة كبيرة","صاروخ فضائي","سيارة حمراء","برج عالي","كأس زجاج","سيف قديم","بيت وشجرة","مصباح طاولة"];
+const suggEl = document.getElementById("sugg");
+SUGG.forEach(t => { const b = document.createElement("button"); b.textContent = t;
+  b.onclick = () => { document.getElementById("prompt").value = t; generate(t); }; suggEl.appendChild(b); });
+
+/* مستوى التفاصيل */
+const polyEl = document.getElementById("poly"), polyLbl = document.getElementById("polyLbl");
+polyEl.oninput = () => {
+  polyLbl.textContent = ["منخفض","متوسط","عالي"][+polyEl.value];
+  V.zoom = [0.82, 1, 1.18][+polyEl.value];
+  draw();
+};
+polyLbl.textContent = "متوسط";
+
+/* أزرار العرض */
+document.getElementById("tSpin").onclick = e => { V.spin = !V.spin; e.currentTarget.classList.toggle("on", V.spin); };
+document.getElementById("tWire").onclick = e => { V.wire = !V.wire; e.currentTarget.classList.toggle("on", V.wire); draw(); };
+document.getElementById("tGrid").onclick = e => { V.grid = !V.grid; e.currentTarget.classList.toggle("on", V.grid); draw(); };
+document.getElementById("tReset").onclick = () => { V.yaw=-0.62; V.pitch=0.36; V.zoom=1; draw(); };
+document.getElementById("tGrid").classList.add("on");
+
+/* توليد */
+document.getElementById("go").onclick = () => generate(document.getElementById("prompt").value);
+document.getElementById("styleSel").onchange = () => generate(document.getElementById("prompt").value);
+document.getElementById("modeSel").onchange = () => generate(document.getElementById("prompt").value);
+document.getElementById("prompt").addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); generate(e.target.value); } });
+
+/* رفع صورة */
+const fileImg = document.getElementById("fileImg");
+document.getElementById("dropImg").onclick = () => fileImg.click();
+fileImg.onchange = () => {
+  const f = fileImg.files && fileImg.files[0]; if(!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const n = imageToMesh(img);
+    CURRENT = { cls:"image", s:1, label:f.name.slice(0,14), kinds:["image"] };
+    draw(); updateStat();
+    toast(n ? ("صورة ← مجسّم: " + n + " كتلة") : "الصورة ما فيها شكل واضح");
+    addHist("صورة: " + f.name.slice(0,10), "default", "solid");
+  };
+  img.src = URL.createObjectURL(f);
+};
+/* زوايا */
+const multiImgs = [];
+const fileMulti = document.getElementById("fileMulti");
+document.getElementById("dropMulti").onclick = () => fileMulti.click();
+fileMulti.onchange = () => {
+  const fs = [...(fileMulti.files||[])].slice(0,4);
+  multiImgs.length = 0;
+  let loaded = 0;
+  const list = document.getElementById("multiList");
+  fs.forEach(f => {
+    const img = new Image();
+    img.onload = () => {
+      multiImgs.push(img); loaded++;
+      list.textContent = "محمّل: " + multiImgs.length + " / " + fs.length;
+      if(loaded === fs.length){
+        const n = multiToMesh(multiImgs);
+        CURRENT = { cls:"multi", s:1, label:"زوايا (" + fs.length + ")", kinds:["multi"] };
+        draw(); updateStat();
+        toast(n ? ("multi-view: " + n + " وجه") : "الصور ما فيها ظل واضح");
+        addHist("زوايا " + fs.length, "default", "solid");
+      }
+    };
+    img.src = URL.createObjectURL(f);
+  });
+};
+
+/* تصدير */
+document.getElementById("exObj").onclick = () => { if(!MESH.f.length) return; download(new Blob([toOBJ()],{type:"text/plain"}), (SHAPES[CURRENT.cls]?SHAPES[CURRENT.cls].key:"model")+".obj"); };
+document.getElementById("exGlb").onclick = () => { if(!MESH.f.length) return; download(toGLB(), (SHAPES[CURRENT.cls]?SHAPES[CURRENT.cls].key:"model")+".glb"); };
+document.getElementById("exStl").onclick = () => { if(!MESH.f.length) return; download(toSTL(), (SHAPES[CURRENT.cls]?SHAPES[CURRENT.cls].key:"model")+".stl"); };
+document.getElementById("exPng").onclick = () => { view.toBlob(b => download(b, "render.png")); };
+
+/* المعرض */
+const GAL = ["كرسي","طاولة","بيت","شجرة","سيارة","كأس","صاروخ","سيف","مصباح","برج","مكعب"];
+function buildGallery(){
+  const el = document.getElementById("gal");
+  el.innerHTML = "";
+  GAL.forEach(name => {
+    const d = document.createElement("div"); d.className = "gitem";
+    const c = document.createElement("canvas"); c.width = 260; c.height = 260; d.appendChild(c);
+    const cap = document.createElement("div"); cap.className = "cap";
+    cap.innerHTML = `<span>${name}</span><span>${SHAPES[name].key}</span>`;
+    d.appendChild(cap);
+    const saved = MESH.v.map(v=>v.slice()), sf = MESH.f.slice(), sc = MESH.c.slice();
+    buildScene([name], 1, "default");
+    thumb(c, MESH);
+    MESH.v.length=0;MESH.f.length=0;MESH.c.length=0;
+    for(const v of saved) MESH.v.push(v); for(const f of sf) MESH.f.push(f); for(const c2 of sc) MESH.c.push(c2);
+    d.onclick = () => {
+      document.getElementById("prompt").value = name;
+      document.querySelector('.tabs button[data-tab="text"]').click();
+      generate(name);
+      document.getElementById("studio").scrollIntoView({behavior:"smooth", block:"start"});
+    };
+    el.appendChild(d);
+  });
+}
+
+/* الميزات */
+const FEATURES = [
+  { t:"نص ← مجسّم", d:"اكتب وصفاً عربياً أو إنكليزياً، ويطلع مجسّم كامل. ١١ صنفاً + تركيبات من مجسّمين.", im:"M4 6h16M4 12h10M4 18h7", on:true },
+  { t:"صورة ← مجسّم", d:"ارفع شعاراً أو ظلاً ونتحوّله إلى مجسّم مسطّح قابل للتصدير.", im:"M3 4h18v16H3zM9 10a1.6 1.6 0 100 .1", on:true },
+  { t:"زوايا متعددة", d:"٢–٤ صور من زوايا مختلفة، ندمج مساقطها لبناء حجم ثلاثي الأبعاد.", im:"M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3z", on:true },
+  { t:"تصدير فوري", d:"OBJ · GLB · STL · PNG — بلا تسجيل ولا انتظار.", im:"M12 3v12M8 11l4 4 4-4M4 19h16", on:true },
+  { t:"أسلوب ولون", d:"أربعة أنماط: طبيعي، خشبي، معدني، باستيل، رمادي.", im:"M12 3a9 9 0 100 18 4 4 0 010-8 4 4 0 000-8", on:true },
+  { t:"وضع الفوكسل", d:"تحويل المجسّم الناعم إلى فوكسل لمظهر الألعاب القديمة.", im:"M4 4h6v6H4zM14 4h6v6h-6zM9 14h6v6H9z", on:true },
+  { t:"إعادة الطبوغرافيا", d:"تقليل عدد الأوجه حسب الميزانية المطلوبة.", im:"M12 2 2 12l10 10 10-10z", on:false },
+  { t:"تكسير الأجزاء", d:"فصل المجسّم إلى قطع قابلة للتعديل كل واحدة لحالها.", im:"M3 3h8v8H3zM14 14h7v7h-7z", on:false },
+  { t:"هيكل وحركة", d:"تركيب هيكل عظمي تلقائي وتحريك أساسي.", im:"M12 3v18M6 8h12M8 21h8", on:false },
+];
+function buildFeatures(){
+  const el = document.getElementById("feats");
+  el.innerHTML = "";
+  FEATURES.forEach(f => {
+    const d = document.createElement("div");
+    d.className = "feat" + (f.on ? "" : " soon");
+    d.innerHTML = `<div class="ic"><svg viewBox="0 0 24 24"><path d="${f.im}"/></svg></div>
+      <h3>${f.t}<em>${f.on ? "متاح" : "قريباً"}</em></h3><p>${f.d}</p>`;
+    el.appendChild(d);
+  });
+}
+
+/* تشغيل */
+window.addEventListener("resize", resizeView);
+resizeView();
+buildGallery();
+buildFeatures();
+generate("بيت صغير");
+startSpin();
+</script>
+</body>
+</html>
