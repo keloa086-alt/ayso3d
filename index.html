@@ -115,6 +115,23 @@
     background:rgba(109,107,255,.16);border:1px solid #3a3a86;color:#c7c5ff}
   .step b{display:block;margin-top:10px;font-size:14px;font-weight:600}
   .step p{color:var(--dim);font-size:12.5px;line-height:1.75;margin-top:5px}
+  /* بطاقة الموديل المدرَّب */
+  .aicard{background:linear-gradient(180deg,rgba(109,107,255,.07),rgba(17,19,25,0)),var(--panel);
+    border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:16px}
+  .aihead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .aihead b{font-size:14px;font-weight:600}
+  .aihead span{font-size:11.5px;color:var(--dim2);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .aihead span.ok{color:#8ee0a8;border-color:#2b5d3c;background:rgba(60,160,100,.1)}
+  .aicard p{color:var(--dim);font-size:12.5px;line-height:1.75;margin-top:7px}
+  .aibar{height:5px;border-radius:999px;background:#1b1d26;overflow:hidden;margin-top:12px}
+  .aibar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#6d6bff,#c084fc);transition:width .2s}
+  .aimeta{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+  .aimeta span{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:7px;padding:4px 8px;direction:ltr}
+  .aimeta span b{color:var(--txt);font-weight:500}
+  .aibtn{margin-top:12px;width:100%;padding:10px;border-radius:10px;border:1px solid #3a3a86;
+    background:rgba(109,107,255,.14);color:#c7c5ff;font-family:inherit;font-size:13px;cursor:pointer}
+  .aibtn:hover{background:rgba(109,107,255,.22)}
+  .aibtn:disabled{opacity:.5;cursor:default}
   .feats{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:14px}
   .feat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}
   .feat .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;margin-bottom:11px;
@@ -251,6 +268,7 @@
           <select id="modeSel">
             <option value="solid">مجسّم ناعم</option>
             <option value="voxel">فوكسل</option>
+            <option value="learned">مدرَّب (AI)</option>
           </select>
         </div>
       </div>
@@ -272,6 +290,20 @@
         <button id="exPng">صورة PNG</button>
       </div>
     </div>
+  </div>
+
+  <!-- ═══ الموديل المدرَّب ═══ -->
+  <div class="aicard" id="aiCard">
+    <div class="aihead"><b>الموديل المدرَّب — شبكة عصبية تُدرَّب هنا</b><span id="aiState">غير مدرَّب</span></div>
+    <p>شبكة من ٥ ملايين وزن تبدأ من الصفر (أوزان صفرية) وتتعلّم أشكال المجسّمات داخل متصفحك في ثوانٍ — بلا نماذج جاهزة، بلا سيرفر، بلا GPU. ترميز النص إلى ٣٨٤ ميزة مُهشَّرة، والمخرج شبكة إشغال ٢٤×٢٤×٢٤.</p>
+    <div class="aibar"><i id="aiBar"></i></div>
+    <div class="aimeta" id="aiMeta">
+      <span>params <b>5,322,240</b></span>
+      <span>grid <b>24³</b></span>
+      <span>feat <b>384</b></span>
+      <span>optimizer <b>Adam</b></span>
+    </div>
+    <button class="aibtn" id="aiTrain">درّب الموديل الآن</button>
   </div>
 
   <!-- ═══ كيف يعمل ═══ -->
@@ -616,6 +648,22 @@ function generate(text, styleOverride){
   if(!order.length) order = ["مكعب"];
   order = order.slice(0,2);
   const s = sizeFrom(t);
+  if(mode === "learned"){
+    if(!AI.trained){
+      toast("الموديل ما مدرَّب — جاري التدريب أول مرة…");
+      aiTrain(aiUiProgress).then(() => {
+        aiUiDone();
+        const bs = aiBuildMESH(t, style);
+        CURRENT = { cls:bs.order[0], s:bs.s, label:t.slice(0,18), kinds:bs.order };
+        draw(); updateStat(); addHist(t, style, mode);
+      });
+      return;
+    }
+    const bs = aiBuildMESH(t, style);
+    CURRENT = { cls:bs.order[0], s:bs.s, label:t.slice(0,18), kinds:bs.order };
+    draw(); updateStat(); addHist(t, style, mode);
+    return;
+  }
   if(mode === "voxel"){ CURRENT = { cls:order[0], s, label:t.slice(0,18), kinds:order }; buildVoxelScene(order, s, style); }
   else { buildScene(order, s, style); CURRENT = { cls:order[0], s, label:t.slice(0,18), kinds:order }; }
   draw(); updateStat();
@@ -640,7 +688,8 @@ function renderHist(){
       document.getElementById("styleSel").value = h.style;
       document.getElementById("modeSel").value = h.mode;
       generateDark(h, c);
-      if(h.mode === "voxel") buildVoxelScene(detectAll(h.t).length?detectAll(h.t):["مكعب"], sizeFrom(h.t), h.style);
+      if(h.mode === "learned" && AI.trained) aiBuildMESH(h.t, h.style);
+      else if(h.mode === "voxel") buildVoxelScene(detectAll(h.t).length?detectAll(h.t):["مكعب"], sizeFrom(h.t), h.style);
       else buildScene(detectAll(h.t).length?detectAll(h.t):["مكعب"], sizeFrom(h.t), h.style);
       draw(); updateStat();
       [...el.children].forEach(x=>x.classList.remove("on")); d.classList.add("on");
@@ -653,7 +702,8 @@ function renderHist(){
 function generateDark(h, canvas){
   const saved = MESH.v.map(v=>v.slice()), sf = MESH.f.slice(), sc = MESH.c.slice();
   const order = detectAll(h.t); const s = sizeFrom(h.t);
-  buildScene(order.length?order:["مكعب"], s, h.style);
+  if(h.mode === "learned" && AI.trained) aiBuildMESH(h.t, h.style);
+  else buildScene(order.length?order:["مكعب"], s, h.style);
   thumb(canvas, MESH);
   MESH.v.length = 0; MESH.f.length = 0; MESH.c.length = 0;
   for(const v of saved) MESH.v.push(v); for(const f of sf) MESH.f.push(f); for(const c of sc) MESH.c.push(c);
@@ -757,6 +807,316 @@ function buildVoxelScene(order, s, style){
   }
   if(!MESH.f.length){ for(const v of savedV) MESH.v.push(v); for(const f of savedF) MESH.f.push(f); for(const c of savedC) MESH.c.push(c); }
 }
+
+
+/* ══════════════════════════════════════════════════════════════
+   الموديل المدرَّب: شبكة عصبية تُدرَّب من الصفر داخل المتصفح
+   نص → ٣٨٤ ميزة مُهشَّرة → ٤٠٩٦ خلية (16³) → شبكة إشغال → مجسّم
+   ══════════════════════════════════════════════════════════════ */
+const AI = {
+  N: 24, D: 384, EPOCHS: 14, LR: 0.024,
+  W: null, b: null, trained: false, busy: false,
+  iou: 0, iouTest: 0, loss: 0, ms: 0, samples: 0, steps: 0
+};
+const AI_K = () => AI.N*AI.N*AI.N;
+
+/* ── تجزئة نصية سريعة (FNV-1a) ── */
+function hash32(str){
+  let h = 2166136261 >>> 0;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h >>> 0;
+}
+/* ── النص ← ميزات مُهشَّرة (كلمات + ثلاثيات أحرف) ── */
+function aiFeat(text){
+  const t = "«" + norm(text) + "»";
+  const acc = new Float32Array(AI.D);
+  const add = (k, w) => { acc[hash32(k) % AI.D] += w; };
+  for(const w of t.split(/\s+/)) if(w) add("w:" + w, 1.8);
+  for(let i=0;i+2<t.length;i++) add("3:" + t.slice(i,i+3), 1);
+  let n2 = 0; for(let i=0;i<AI.D;i++) n2 += acc[i]*acc[i];
+  const inv = n2 > 0 ? 1/Math.sqrt(n2) : 1;
+  const ids = [], vals = [];
+  for(let i=0;i<AI.D;i++) if(acc[i] !== 0){ acc[i] *= inv; ids.push(i); vals.push(acc[i]); }
+  return { ids, vals };
+}
+
+/* ── تحويل MESH الحالي إلى شبكة إشغال N³ (سطح + تعبئة الخارج) ── */
+function voxelizeFixed(N){
+  let minX=1e9,minY=1e9,minZ=1e9,maxX=-1e9,maxY=-1e9,maxZ=-1e9;
+  for(const v of MESH.v){ minX=Math.min(minX,v[0]);maxX=Math.max(maxX,v[0]);
+    minY=Math.min(minY,v[1]);maxY=Math.max(maxY,v[1]);minZ=Math.min(minZ,v[2]);maxZ=Math.max(maxZ,v[2]); }
+  const span = Math.max(maxX-minX, maxY-minY, maxZ-minZ) || 1;
+  const id = (i,j,k) => (k*N+j)*N+i;
+  const cell = new Uint8Array(N*N*N);
+  const put = (i,j,k) => { if(i>=0&&j>=0&&k>=0&&i<N&&j<N&&k<N) cell[id(i,j,k)] = 1; };
+  for(const f of MESH.f){
+    for(let k=1;k<f.length-1;k++){
+      const p0=MESH.v[f[0]], p1=MESH.v[f[k]], p2=MESH.v[f[k+1]];
+      const cellW = span/N;
+      const e1 = Math.hypot(p1[0]-p0[0],p1[1]-p0[1],p1[2]-p0[2]);
+      const e2 = Math.hypot(p2[0]-p1[0],p2[1]-p1[1],p2[2]-p1[2]);
+      const e3 = Math.hypot(p0[0]-p2[0],p0[1]-p2[1],p0[2]-p2[2]);
+      const S = Math.min(56, Math.max(10, Math.ceil(Math.max(e1,e2,e3)/cellW*2)));
+      for(let a=0;a<=S;a++) for(let b=0;b<=S-a;b++){
+        const t1=a/S, t2=b/S, t3=1-t1-t2;
+        const x=p0[0]*t3+p1[0]*t1+p2[0]*t2, y=p0[1]*t3+p1[1]*t1+p2[1]*t2, z=p0[2]*t3+p1[2]*t1+p2[2]*t2;
+        const fx=(x-minX)/span*N, fy=(y-minY)/span*N, fz=(z-minZ)/span*N;
+        const i=Math.floor(fx), j=Math.floor(fy), m=Math.floor(fz);
+        put(i,j,m);
+        const rx=fx-i, ry=fy-j, rz=fz-m;   /* نعلّم الجارة فقط إذا كان السطح قريب من الحد */
+        if(rx>.72) put(i+1,j,m); else if(rx<.28) put(i-1,j,m);
+        if(ry>.72) put(i,j+1,m); else if(ry<.28) put(i,j-1,m);
+        if(rz>.72) put(i,j,m+1); else if(rz<.28) put(i,j,m-1);
+      }
+    }
+  }
+  /* تعبئة الخارج ثم الباقي = صلب */
+  const out = new Uint8Array(N*N*N), st = [];
+  for(let k=0;k<N;k++) for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+    if(i===0||j===0||k===0||i===N-1||j===N-1||k===N-1){
+      const q = id(i,j,k); if(!cell[q] && !out[q]){ out[q]=1; st.push(q); }
+    }
+  }
+  while(st.length){
+    const q = st.pop(), i = q%N, j = Math.floor(q/N)%N, k = Math.floor(q/(N*N));
+    const nb = [[i-1,j,k],[i+1,j,k],[i,j-1,k],[i,j+1,k],[i,j,k-1],[i,j,k+1]];
+    for(const [a,b,c] of nb){
+      if(a<0||b<0||c<0||a>=N||b>=N||c>=N) continue;
+      const r = id(a,b,c);
+      if(out[r] || cell[r]) continue;
+      out[r]=1; st.push(r);
+    }
+  }
+  const occ = new Uint8Array(N*N*N);
+  for(let q=0;q<occ.length;q++) occ[q] = out[q] ? 0 : 1;
+  return occ;
+}
+
+
+/* ── شبكة إشغال ← مجسّم (وجوه خارجية فقط) ── */
+function hexTone(hex, f){
+  const c = hexRGB(hex);
+  const cl = v => Math.max(0, Math.min(255, Math.round(v*255*f)));
+  return "#" + [cl(c[0]),cl(c[1]),cl(c[2])].map(v=>v.toString(16).padStart(2,"0")).join("");
+}
+function meshFromOcc(occ, N, col, size, clear){
+  if(clear !== false) RESET();
+  const step = size/N, h = step/2, half = size/2;
+  const top = hexTone(col, 1.16), side = col, sideD = hexTone(col, .8), bot = hexTone(col, .62);
+  const S = (i,j,k) => (i<0||j<0||k<0||i>=N||j>=N||k>=N) ? 0 : occ[(k*N+j)*N+i];
+  for(let k=0;k<N;k++) for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+    if(!occ[(k*N+j)*N+i]) continue;
+    const cx = -half + (i+.5)*step, cy = -half + (j+.5)*step, cz = -half + (k+.5)*step;
+    if(!S(i,j+1,k)) AF([AV(cx-h,cy+h,cz-h),AV(cx+h,cy+h,cz-h),AV(cx+h,cy+h,cz+h),AV(cx-h,cy+h,cz+h)], top);
+    if(!S(i,j-1,k)) AF([AV(cx-h,cy-h,cz-h),AV(cx-h,cy-h,cz+h),AV(cx+h,cy-h,cz+h),AV(cx+h,cy-h,cz-h)], bot);
+    if(!S(i+1,j,k)) AF([AV(cx+h,cy-h,cz-h),AV(cx+h,cy-h,cz+h),AV(cx+h,cy+h,cz+h),AV(cx+h,cy+h,cz-h)], side);
+    if(!S(i-1,j,k)) AF([AV(cx-h,cy-h,cz+h),AV(cx-h,cy-h,cz-h),AV(cx-h,cy+h,cz-h),AV(cx-h,cy+h,cz+h)], sideD);
+    if(!S(i,j,k+1)) AF([AV(cx-h,cy-h,cz+h),AV(cx+h,cy-h,cz+h),AV(cx+h,cy+h,cz+h),AV(cx-h,cy+h,cz+h)], side);
+    if(!S(i,j,k-1)) AF([AV(cx+h,cy-h,cz-h),AV(cx-h,cy-h,cz-h),AV(cx-h,cy+h,cz-h),AV(cx+h,cy+h,cz-h)], sideD);
+  }
+}
+function shiftVerts(from, ox, oz){
+  for(let i=from;i<MESH.v.length;i++){ MESH.v[i][0] += ox; MESH.v[i][2] += oz; }
+}
+
+/* ── نصوص التدريب: ٨ صيغ لكل صنف (عربي + إنكليزي + صفات) ── */
+const AI_TEXTS = {
+  "كرسي":  ["كرسي","chair","كرسي خشبي","wooden chair","مقعد","كرسي صغير","كرسي كبير","seat chair"],
+  "طاولة": ["طاولة","table","طاولة خشب","wood table","ميز","طاولة كبيرة","طاولة صغيرة","desk"],
+  "بيت":   ["بيت","house","منزل","home","بيت صغير","بيت كبير","دار","بيت خشبي"],
+  "شجرة":  ["شجرة","tree","نخلة","شجرة كبيرة","شجرة صغيرة","plant tree","شجرة خضراء","tree big"],
+  "سيارة": ["سيارة","car","سيارة حمراء","red car","مركبة","سيارة صغيرة","vehicle","سيارة كبيرة"],
+  "كأس":   ["كأس","cup","كوب","mug","كأس زجاج","glass cup","فنجان","كأس كبير"],
+  "صاروخ": ["صاروخ","rocket","صاروخ فضائي","space rocket","مركبة فضاء","صاروخ كبير","rocket ship","صاروخ صغير"],
+  "سيف":   ["سيف","sword","سكين","knife","سيف قديم","blade","سيف كبير","sword old"],
+  "مصباح": ["مصباح","lamp","نور","light","مصباح طاولة","table lamp","مصباح كبير","lamp tall"],
+  "برج":   ["برج","tower","عمارة","building","برج عالي","tall tower","برج كبير","tower high"],
+  "مكعب":  ["مكعب","cube","صندوق","box","مكعب كبير","block","مكعب صغير","cube box"]
+};
+/* نصوص ما شافها الموديل بالتدريب — نقيس عليها التعميم */
+const AI_TEST = [
+  ["chair wooden","كرسي قديم","مقعد خشبي"],
+  ["desk wood","طاولة مكتب","table big"],
+  ["منزل قديم","house small","دار كبيرة"],
+  ["tree green big","شجرة عالية","نخل"],
+  ["car fast red","سيارة سريعة","مركبة صغيرة"],
+  ["mug white","كوب شاي","cup glass white"],
+  ["rocket space big","صاروخ سريع","مركبة فضائية"],
+  ["sword sharp","سكين قديم","blade long"],
+  ["lamp desk","مصباح صغير","light bright"],
+  ["tower tall big","برج مرتفع","building high"],
+  ["box small","صندوق خشبي","cube big"]
+];
+
+const snapMesh = () => ({ v: MESH.v.map(p=>p.slice()), f: MESH.f.slice(), c: MESH.c.slice() });
+const loadMesh = o => { RESET(); for(const v of o.v) MESH.v.push(v); for(const f of o.f) MESH.f.push(f); for(const c of o.c) MESH.c.push(c); };
+
+/* ── بناء مجموعة البيانات: كل صنف ← شبكة إشغال 16³ ── */
+function aiBuildDataset(){
+  const ds = [], classes = Object.keys(SHAPES);
+  const targets = {};
+  for(const cls of classes){
+    buildScene([cls], 1, "default");
+    targets[cls] = voxelizeFixed(AI.N);
+  }
+  for(const cls of classes){
+    for(const t of (AI_TEXTS[cls] || [cls])){
+      const f = aiFeat(t);
+      ds.push({ ids: Int32Array.from(f.ids), vals: Float32Array.from(f.vals), y: targets[cls], cls });
+    }
+  }
+  return ds;
+}
+
+/* ── تدريب ── */
+async function aiTrain(report){
+  if(AI.busy) return;
+  AI.busy = true; AI.trained = false;
+  const t0 = performance.now();
+  const K = AI_K(), D = AI.D;
+  const saved = snapMesh();
+  const ds = aiBuildDataset();        /* يغيّر MESH مؤقتاً */
+  loadMesh(saved);
+  const W  = new Float32Array(K*D), b  = new Float32Array(K);
+  const mW = new Float32Array(K*D), vW = new Float32Array(K*D);
+  const mb = new Float32Array(K),   vb = new Float32Array(K);
+  const z = new Float32Array(K), g = new Float32Array(K);
+  const b1 = .9, b2 = .999, eps = 1e-8;
+  let step = 0, loss = 0;
+  for(let ep=0; ep<AI.EPOCHS; ep++){
+    for(let i=ds.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const tmp=ds[i]; ds[i]=ds[j]; ds[j]=tmp; }
+    const lr = AI.LR * (1 - .55 * ep / AI.EPOCHS);
+    for(const sm of ds){
+      step++;
+      const c1 = 1 - Math.pow(b1,step), c2 = 1 - Math.pow(b2,step);
+      z.set(b);
+      const ids = sm.ids, vals = sm.vals, na = ids.length;
+      for(let a=0;a<na;a++){
+        const d = ids[a], v = vals[a];
+        for(let k=0;k<K;k++) z[k] += W[k*D+d]*v;
+      }
+      loss = 0;
+      for(let k=0;k<K;k++){
+        const p = 1/(1+Math.exp(-z[k])), yy = sm.y[k];
+        g[k] = p - yy;
+        loss += -(yy*Math.log(p+1e-7) + (1-yy)*Math.log(1-p+1e-7));
+      }
+      loss /= K;
+      for(let k=0;k<K;k++){
+        const gr = g[k];
+        mb[k] = b1*mb[k] + (1-b1)*gr;  vb[k] = b2*vb[k] + (1-b2)*gr*gr;
+        b[k] -= lr * (mb[k]/c1) / (Math.sqrt(vb[k]/c2) + eps);
+      }
+      for(let a=0;a<na;a++){
+        const d = ids[a], v = vals[a], v2 = v*v;
+        for(let k=0;k<K;k++){
+          const o = k*D+d, gr = g[k]*v;
+          mW[o] = b1*mW[o] + (1-b1)*gr;  vW[o] = b2*vW[o] + (1-b2)*gr*gr;
+          W[o] -= lr * (mW[o]/c1) / (Math.sqrt(vW[o]/c2) + eps);
+        }
+      }
+    }
+    if(report) report(ep+1, AI.EPOCHS, loss);
+    await new Promise(r => setTimeout(r, 0));
+  }
+  AI.W = W; AI.b = b; AI.trained = true; AI.busy = false;
+  AI.ms = performance.now() - t0; AI.samples = ds.length; AI.steps = step; AI.loss = loss;
+  AI.iou = aiEval(ds);
+  AI.iouTest = aiEvalTest();
+}
+
+/* ── استنتاج ── */
+function aiPredictOcc(text){
+  if(!AI.trained) return null;
+  const K = AI_K(), D = AI.D, f = aiFeat(text);
+  const z = Float32Array.from(AI.b);
+  for(let a=0;a<f.ids.length;a++){
+    const d = f.ids[a], v = f.vals[a];
+    for(let k=0;k<K;k++) z[k] += AI.W[k*D+d]*v;
+  }
+  const occ = new Uint8Array(K);
+  for(let k=0;k<K;k++) occ[k] = (1/(1+Math.exp(-z[k]))) > .5 ? 1 : 0;
+  return occ;
+}
+function iouOf(a, b){
+  let inter = 0, uni = 0;
+  for(let k=0;k<a.length;k++){ const x = a[k] ? 1 : 0, y = b[k] ? 1 : 0; if(x&&y) inter++; if(x||y) uni++; }
+  return uni ? inter/uni : 0;
+}
+function aiEval(ds){
+  let s = 0;
+  for(const sm of ds){
+    const f = { ids: Array.from(sm.ids), vals: Array.from(sm.vals) };
+    const K = AI_K(), D = AI.D;
+    const z = Float32Array.from(AI.b);
+    for(let a=0;a<f.ids.length;a++){ const d=f.ids[a], v=f.vals[a];
+      for(let k=0;k<K;k++) z[k] += AI.W[k*D+d]*v; }
+    const occ = new Uint8Array(K);
+    for(let k=0;k<K;k++) occ[k] = (1/(1+Math.exp(-z[k]))) > .5 ? 1 : 0;
+    s += iouOf(occ, sm.y);
+  }
+  return s/ds.length;
+}
+function aiEvalTest(){
+  const saved = snapMesh();
+  const classes = Object.keys(SHAPES);
+  const targets = {};
+  for(const cls of classes){ buildScene([cls], 1, "default"); targets[cls] = voxelizeFixed(AI.N); }
+  loadMesh(saved);
+  let s = 0, n = 0;
+  AI_TEST.forEach((list, ci) => {
+    const cls = classes[ci];
+    for(const t of list){ s += iouOf(aiPredictOcc(t), targets[cls]); n++; }
+  });
+  return n ? s/n : 0;
+}
+
+/* ── توليد بالطريقة المدرَّبة ── */
+function aiBuildMESH(text, style){
+  let order = detectAll(text);
+  if(!order.length) order = ["مكعب"];
+  order = order.slice(0, 2);
+  const s = sizeFrom(text), col = tint("#d8cfc0", style);
+  RESET();
+  if(order.length === 1){
+    meshFromOcc(aiPredictOcc(text), AI.N, col, 1.6*s);
+  } else {
+    const st1 = MESH.v.length;
+    meshFromOcc(aiPredictOcc(order[0]), AI.N, col, 1.25*s);
+    shiftVerts(st1, -.64, 0);
+    const st2 = MESH.v.length;
+    meshFromOcc(aiPredictOcc(order[1]), AI.N, tint("#cfd8c8", style), 1.1*s, false);
+    shiftVerts(st2, .68, .1);
+  }
+  return { order, s };
+}
+
+/* ── واجهة الموديل ── */
+function aiUiProgress(ep, total, loss){
+  document.getElementById("aiBar").style.width = (ep/total*100).toFixed(1) + "%";
+  document.getElementById("aiState").textContent = `تدريب ${ep}/${total} · loss ${loss.toFixed(3)}`;
+}
+function aiUiDone(){
+  const st = document.getElementById("aiState");
+  st.textContent = "مدرَّب ✓"; st.classList.add("ok");
+  document.getElementById("aiBar").style.width = "100%";
+  document.getElementById("aiMeta").innerHTML =
+    `<span>train IoU <b>${(AI.iou*100).toFixed(1)}%</b></span>` +
+    `<span>unseen IoU <b>${(AI.iouTest*100).toFixed(1)}%</b></span>` +
+    `<span>time <b>${(AI.ms/1000).toFixed(2)}s</b></span>` +
+    `<span>samples <b>${AI.samples}</b></span>` +
+    `<span>params <b>${(AI_K()*AI.D + AI_K()).toLocaleString("en")}</b></span>`;
+}
+document.getElementById("aiTrain").onclick = async () => {
+  const btn = document.getElementById("aiTrain");
+  btn.disabled = true; btn.textContent = "جاري التدريب…";
+  document.getElementById("aiState").textContent = "يبدأ من الصفر…";
+  document.getElementById("aiState").classList.remove("ok");
+  await aiTrain(aiUiProgress);
+  aiUiDone();
+  btn.disabled = false; btn.textContent = "أعد التدريب";
+  toast(`تم التدريب: ${AI.epochs || AI.EPOCHS} حقبة · IoU ${(AI.iou*100).toFixed(0)}%`);
+};
 
 /* ══════════════ التصدير ══════════════ */
 function download(blob, name){
@@ -1009,6 +1369,7 @@ const FEATURES = [
   { t:"تصدير فوري", d:"OBJ · GLB · STL · PNG — بلا تسجيل ولا انتظار.", im:"M12 3v12M8 11l4 4 4-4M4 19h16", on:true },
   { t:"أسلوب ولون", d:"أربعة أنماط: طبيعي، خشبي، معدني، باستيل، رمادي.", im:"M12 3a9 9 0 100 18 4 4 0 010-8 4 4 0 000-8", on:true },
   { t:"وضع الفوكسل", d:"تحويل المجسّم الناعم إلى فوكسل لمظهر الألعاب القديمة.", im:"M4 4h6v6H4zM14 4h6v6h-6zM9 14h6v6H9z", on:true },
+  { t:"مدرَّب داخل المتصفح", d:"شبكة ٥ ملايين وزن تبدأ من أوزان صفرية وتتدرّب في صفحتك خلال ثوانٍ — تعلّم حقيقي، لا نماذج جاهزة.", im:"M12 3v6M12 15v6M3 12h6M15 12h6M6 6l3 3M18 6l-3 3M6 18l3-3M18 18l-3-3", on:true },
   { t:"إعادة الطبوغرافيا", d:"تقليل عدد الأوجه حسب الميزانية المطلوبة.", im:"M12 2 2 12l10 10 10-10z", on:false },
   { t:"تكسير الأجزاء", d:"فصل المجسّم إلى قطع قابلة للتعديل كل واحدة لحالها.", im:"M3 3h8v8H3zM14 14h7v7h-7z", on:false },
   { t:"هيكل وحركة", d:"تركيب هيكل عظمي تلقائي وتحريك أساسي.", im:"M12 3v18M6 8h12M8 21h8", on:false },
