@@ -2,6 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#08090c">
 <title>Ayso 3D — مولّد مجسّمات ثلاثية الأبعاد</title>
@@ -123,8 +126,6 @@
   .aihead span{font-size:11.5px;color:var(--dim2);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
   .aihead span.ok{color:#8ee0a8;border-color:#2b5d3c;background:rgba(60,160,100,.1)}
   .aicard p{color:var(--dim);font-size:12.5px;line-height:1.75;margin-top:7px}
-  .aibar{height:5px;border-radius:999px;background:#1b1d26;overflow:hidden;margin-top:12px}
-  .aibar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#6d6bff,#c084fc);transition:width .2s}
   .aimeta{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
   .aimeta span{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:7px;padding:4px 8px;direction:ltr}
   .aimeta span b{color:var(--txt);font-weight:500}
@@ -294,7 +295,7 @@
 
   <!-- ═══ الموديل المدرَّب ═══ -->
   <div class="aicard" id="aiCard">
-    <div class="aihead"><b>الموديل المدرَّب — شبكة عصبية تُدرَّب هنا</b><span id="aiState">غير مدرَّب</span></div>
+    <div class="aihead"><b>الموديل المدرَّب — شبكة عصبية تُدرَّب هنا</b><span id="aiState">جاهز · v3.2</span></div>
     <p>شبكة من ٥ ملايين وزن تبدأ من أصفار ومدرَّبة سلفاً ومضمَّنة مع الموقع (‎2.6MB مضغوطة إلى ~0.9MB) — تفتح الصفحة والموديل جاهز فوراً، بلا انتظار ولا شريط تقدّم. تعلّم حقيقي جرّبناه بأنفسنا، بلا نماذج جاهزة ولا سيرفر. ترميز النص إلى ٣٨٤ ميزة مُهشَّرة، والمخرج شبكة إشغال ٢٤×٢٤×٢٤.</p>
     <div class="aimeta" id="aiMeta">
       <span>params <b>5,322,240</b></span>
@@ -1215,7 +1216,7 @@ function aiUiProgress(ep, total, loss){
 }
 function aiUiDone(src){
   const st = document.getElementById("aiState");
-  st.textContent = src === "cached" ? "مدرَّب ✓" : "مدرَّب ✓"; st.classList.add("ok");
+  st.textContent = "مدرَّب ✓ · v3.2"; st.classList.add("ok");
   document.getElementById("aiMeta").innerHTML =
     `<span>train IoU <b>${(AI.iou*100).toFixed(1)}%</b></span>` +
     `<span>unseen IoU <b>${(AI.iouTest*100).toFixed(1)}%</b></span>` +
@@ -1313,7 +1314,7 @@ async function aiAutoStart(){
   st.classList.remove("ok");
   st.textContent = "جاهز";
   try{
-    await aiLoadPacked("model.bin");
+    await aiLoadPacked("model.bin?v=32");
     aiUiDone("cached");
     btn.textContent = "أعد التدريب";
     aiAutoShow();
