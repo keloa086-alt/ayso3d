@@ -118,6 +118,12 @@
     background:rgba(109,107,255,.16);border:1px solid #3a3a86;color:#c7c5ff}
   .step b{display:block;margin-top:10px;font-size:14px;font-weight:600}
   .step p{color:var(--dim);font-size:12.5px;line-height:1.75;margin-top:5px}
+  /* شرائح تحليل الوصف */
+  .parse{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;min-height:0}
+  .parse span{font-size:10.5px;padding:3px 8px;border-radius:999px;background:rgba(109,107,255,.12);
+    border:1px solid #35356e;color:#b9b7ff}
+  .parse span.c{background:rgba(255,255,255,.06);border-color:#3a3a3a;color:var(--dim)}
+  .parse span.ai{background:rgba(224,180,82,.12);border-color:#6b5626;color:#e0c07a}
   /* بطاقة الموديل المدرَّب */
   .aicard{background:linear-gradient(180deg,rgba(109,107,255,.07),rgba(17,19,25,0)),var(--panel);
     border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:16px}
@@ -190,7 +196,7 @@
     <h1>من فكرة إلى <em>مجسّم ثلاثي الأبعاد</em><br>في ثوانٍ</h1>
     <p>اكتب وصفاً أو ارفع صورة — واحصل على مجسّم جاهز لـ Blender و Unity و Godot.</p>
     <div class="badges">
-      <div class="badge"><b>~٢ ث</b> زمن التوليد</div>
+      <div class="badge"><b>أي وصف</b> بالعربي</div>
       <div class="badge"><b>OBJ · GLB · STL</b> تصدير</div>
       <div class="badge"><b>٠ $</b> بلا حساب</div>
     </div>
@@ -226,6 +232,7 @@
           <label>وصف المجسّم</label>
           <textarea id="prompt" placeholder="مثال: بيت صغير بسقف أحمر · كرسي خشبي · صاروخ فضائي">بيت صغير</textarea>
           <div class="sugg" id="sugg"></div>
+        <div class="parse" id="parse"></div>
         </div>
       </div>
 
@@ -503,6 +510,313 @@ function buildScene(order, s, style){
   /* تطبيق النمط على كل الألوان */
   if(style && style !== "default"){ for(let i=0;i<MESH.c.length;i++) MESH.c[i] = tint(MESH.c[i], style); }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   محرّك الوصف الحر: أي جملة ← مجسّم مركّب
+   أدوات: معجم ٦٠+ كلمة · ألوان · عدد · أبعاد · تركيب متعدد · مولّد احتياطي
+   ══════════════════════════════════════════════════════════════ */
+const COLOR_WORDS = [
+  [/(احمر|حمراء|أحمر|red)/, "#c0432f"], [/(ازرق|زرقاء|أزرق|blue)/, "#2f5fc0"],
+  [/(اخضر|خضراء|أخضر|green)/, "#3f7d4a"], [/(اصفر|صفراء|أصفر|yellow)/, "#e0b452"],
+  [/(ابيض|بيضاء|white)/, "#e8e8ec"], [/(اسود|سوداء|black)/, "#2b2f36"],
+  [/(رمادي|grey|gray)/, "#9aa4b2"], [/(بني|بنية|brown)/, "#7a5433"],
+  [/(ذهبي|gold)/, "#c9a154"], [/(فضي|silver)/, "#b8bcc4"],
+  [/(برتقالي|orange)/, "#d1743a"], [/(بنفسجي|purple|violet)/, "#7a5ec9"],
+  [/(وردي|pink)/, "#d1799a"], [/(تركواز|فيروزي|turquoise|teal)/, "#2f9e9e"],
+  [/(خشبي|wood)/, "#8a6b3a"], [/(معدني|حديدي|metal|steel)/, "#8d9299"],
+];
+
+const NUM_WORDS = {"اثنين":2,"اثنان":2,"ثلاثة":3,"ثلاث":3,"اربعة":4,"أربعة":4,"خمسة":5,"خمس":5,"ستة":6,"ست":6};
+
+/* تفاصيل الوجه: تُرسم على الوجهين (أمام/خلف) حتى تظهر من أي زاوية */
+function face2(fn){ fn(1); fn(-1); }
+
+/* ── وصفات جديدة (تُبنى من نفس الأوليات) ── */
+const RECIPES = {
+  "زهرة": (s,C)=>{ cyl(0,.42*s,0,.035*s,.84*s,10,"#4c9459");
+    for(let i=0;i<6;i++){ const a=i/6*Math.PI*2;
+      box(Math.cos(a)*.2*s,.9*s,Math.sin(a)*.2*s,.22*s,.05*s,.16*s,"#d1799a",-a); }
+    ball(0,.9*s,0,.1*s,"#e0b452",14,8); },
+  "ساعة": (s,C)=>{ cyl(0,.62*s,0,.42*s,.13*s,26,C,"z");
+    face2(k => {
+      cyl(0,.62*s,k*.078*s,.36*s,.03*s,26,"#f2f2f4","z");
+      for(let i=0;i<12;i++){ const a=i/12*Math.PI*2;
+        box(Math.cos(a)*.27*s,.62*s+Math.sin(a)*.27*s,k*.10*s,.06*s,.06*s,.02*s,i%3?"#5b6472":"#2b2f36",0); }
+      box(0,.68*s,k*.108*s,.028*s,.20*s,.02*s,"#2b2f36",0.1);
+      box(.09*s,.62*s,k*.108*s,.17*s,.028*s,.02*s,"#c0432f",0.2);
+      box(0,.62*s,k*.115*s,.05*s,.05*s,.02*s,"#3b3f47");
+    });
+    box(0,.20*s,0,.16*s,.36*s,.16*s,"#6e5238");
+    cyl(0,.04*s,0,.3*s,.07*s,22,"#6e5238"); },
+  "سرير": (s,C)=>{ box(0,.28*s,0,1.5*s,.16*s,2.0*s,C); box(0,.42*s,0,1.38*s,.16*s,1.86*s,"#e8e8ec");
+    box(0,.56*s,-.72*s,.9*s,.2*s,.34*s,"#dcdce2"); box(0,.72*s,-.96*s,1.5*s,.6*s,.1*s,C);
+    for(const [x,z] of [[-.68,-.92],[.68,-.92],[-.68,.92],[.68,.92]]) box(x*s,.14*s,z*s,.1*s,.28*s,.1*s,"#6e5238"); },
+  "كنبة": (s,C)=>{ box(0,.34*s,0,1.6*s,.34*s,.8*s,C); box(0,.72*s,-.34*s,1.6*s,.62*s,.16*s,C);
+    for(const x of [-1,1]) box(x*.76*s,.5*s,0,.16*s,.34*s,.8*s,C);
+    box(0,.44*s,.1*s,1.3*s,.12*s,.5*s,"#e8dcc8");
+    for(const [x,z] of [[-.7,-.3],[.7,-.3],[-.7,.3],[.7,.3]]) box(x*s,.09*s,z*s,.1*s,.18*s,.1*s,"#3b3f47"); },
+  "دراجة": (s,C)=>{ for(const z of [-1,1]){ cyl(0,.34*s,z*.62*s,.34*s,.07*s,24,"#2b2f36","z");
+      cyl(0,.34*s,z*.62*s,.1*s,.09*s,14,"#9aa4b2","z");
+      for(let i=0;i<8;i++){ const a=i/8*Math.PI*2;
+        box(Math.cos(a)*.24*s,.34*s+Math.sin(a)*.24*s,z*.62*s,.02*s,.24*s,.02*s,"#b8bcc4",a); } }
+    box(0,.62*s,-.1*s,.07*s,.07*s,.72*s,C);
+    box(0,.5*s,-.52*s,.07*s,.3*s,.07*s,C);
+    box(0,.66*s,.42*s,.07*s,.5*s,.07*s,C);
+    box(0,.92*s,.42*s,.42*s,.05*s,.05*s,"#2b2f36");
+    box(0,.8*s,.52*s,.34*s,.05*s,.05*s,"#2b2f36");
+    box(0,.74*s,-.1*s,.16*s,.08*s,.3*s,"#3b3f47");
+    box(0,.66*s,.02*s,.06*s,.34*s,.06*s,"#8d9299"); },  "طائرة": (s,C)=>{ cyl(0,.5*s,0,.16*s,1.5*s,16,C,"z"); cone(0,.5*s,-.86*s,.16*s,.4*s,16,"#9aa4b2","z");
+    box(0,.5*s,.1*s,2.2*s,.07*s,.42*s,C); box(0,.56*s,.78*s,.8*s,.06*s,.26*s,C);
+    box(0,.64*s,.86*s,.06*s,.22*s,.18*s,"#9aa4b2");
+    for(const x of [-1,1]) cyl(x*.28*s,.36*s,.1*s,.1*s,.16*s,12,"#3b3f47","y"); },
+  "قارب": (s,C)=>{ box(0,.24*s,0,1.5*s,.42*s,.6*s,C); pyramid(0,.0*s,0,1.4*s,.5*s,.55*s,C);
+    cyl(0,.9*s,0,.05*s,1.4*s,10,"#8a6b3a"); box(0,1.1*s,.22*s,.05*s,.9*s,.5*s,"#e8e8ec"); },
+  "روبوت": (s,C)=>{ box(0,.72*s,0,.62*s,.62*s,.36*s,C);
+    box(0,.62*s,0,.5*s,.2*s,.4*s,"#9aa4b2");
+    box(0,1.2*s,0,.42*s,.36*s,.36*s,"#b8bcc4");
+    face2(k => {
+      for(const x of [-1,1]) box(x*.11*s,1.24*s,k*.19*s,.09*s,.07*s,.03*s,"#2b2f36");
+      box(0,1.14*s,k*.19*s,.16*s,.04*s,.02*s,"#3b3f47");
+      box(0,.84*s,k*.19*s,.26*s,.13*s,.02*s,"#3f7d4a");
+    });
+    box(0,1.06*s,0,.16*s,.08*s,.16*s,"#9aa4b2");
+    for(const x of [-1,1]){ box(x*.42*s,.78*s,0,.13*s,.34*s,.13*s,"#9aa4b2");
+      box(x*.42*s,.52*s,0,.11*s,.28*s,.11*s,C); }
+    for(const x of [-1,1]){ box(x*.17*s,.30*s,0,.18*s,.36*s,.18*s,"#9aa4b2");
+      box(x*.17*s,.07*s,0,.22*s,.12*s,.28*s,"#3b3f47"); }
+    box(0,1.42*s,0,.05*s,.14*s,.05*s,"#9aa4b2"); },
+  "قصر": (s,C)=>{ box(0,.34*s,0,2.0*s,.68*s,1.5*s,C);
+    box(0,.84*s,0,1.5*s,.32*s,1.1*s,"#dcdce2");
+    for(const x of [-1,-.34,.34,1]) for(const z of [-1,1])
+      cyl(x*.8*s,.86*s,z*.62*s,.09*s,.36*s,12,"#e8e8ec");
+    pyramid(0,.48*s,0,.9*s,.4*s,.9*s,"#c9a154");
+    for(const x of [-1,1]){ pyramid(x*.8*s,1.0*s,0,.5*s,.36*s,.5*s,"#c9a154");
+      cyl(x*.8*s,1.18*s,0,.05*s,.3*s,8,"#9aa4b2"); } },
+  "تنين": (s,C)=>{ box(0,.42*s,0,.36*s,.36*s,1.1*s,C);
+    box(0,.5*s,.68*s,.3*s,.3*s,.42*s,C);
+    box(0,.62*s,.9*s,.2*s,.14*s,.24*s,C);
+    for(const x of [-1,1]) box(x*.09*s,.66*s,1.02*s,.06*s,.05*s,.04*s,"#e0b452");
+    for(const x of [-1,1]){ box(x*.3*s,.62*s,-.05*s,.5*s,.06*s,.5*s,C,-x*.5);
+      box(x*.62*s,.72*s,-.2*s,.36*s,.05*s,.36*s,"#3f7d4a",-x*.7); }
+    for(let i=0;i<4;i++) box(0,.36*s-i*.06*s,-.6*s-i*.16*s,.16*s,.16*s,.2*s,C);
+    box(0,.2*s,-1.18*s,.12*s,.12*s,.3*s,"#3f7d4a");
+    for(const [x,z] of [[-.18,-.3],[.18,-.3],[-.18,.35],[.18,.35]]) box(x*s,.14*s,z*s,.12*s,.28*s,.12*s,C); },
+  "زحليقة": (s,C)=>{ box(0,.92*s,.34*s,.72*s,.07*s,.72*s,"#4f8ec9",-.14);
+    box(0,.62*s,-.06*s,.72*s,.07*s,.6*s,"#4f8ec9",-.1);
+    box(0,.3*s,-.42*s,.72*s,.07*s,.4*s,"#4f8ec9",.05);
+    for(const x of [-1,1]){
+      box(x*.38*s,.95*s,.42*s,.05*s,.12*s,.62*s,"#c9ccd2",-.22);
+      box(x*.38*s,.66*s,-.02*s,.05*s,.12*s,.55*s,"#c9ccd2",-.1);
+      box(x*.36*s,.5*s,-.55*s,.05*s,1.0*s,.05*s,"#9aa4b2",0);
+      box(x*.36*s,.3*s,-.55*s,.05*s,.05*s,.5*s,"#9aa4b2",0);
+    }
+    for(let i=0;i<5;i++) box(0,(.2+i*.19)*s,-.55*s-i*.02*s,.66*s,.045*s,.05*s,"#b8bcc4"); },  "سلم": (s,C)=>{ for(let i=0;i<6;i++) box(0,(.12+i*.22)*s,0,.7*s,.05*s,.24*s,C);
+    for(const x of [-1,1]) box(x*.34*s,.6*s,0,.06*s,1.3*s,.06*s,"#8a6b3a",0); },
+  "حاسوب": (s,C)=>{ box(0,.06*s,0,.9*s,.08*s,.62*s,C); box(0,.42*s,-.28*s,.86*s,.56*s,.05*s,"#2b2f36",0);
+    box(0,.42*s,-.24*s,.76*s,.46*s,.01*s,"#4f6ea8"); },
+  "هاتف": (s,C)=>{ box(0,.62*s,0,.44*s,.9*s,.09*s,"#2b2f36"); box(0,.62*s,.055*s,.38*s,.8*s,.01*s,"#4f6ea8"); },
+  "كتاب": (s,C)=>{ box(0,.12*s,0,.9*s,.22*s,.66*s,C); box(0,.125*s,.02*s,.84*s,.18*s,.6*s,"#e8e8ec"); },
+  "صخرة": (s,C)=>{ box(0,.24*s,0,.8*s,.48*s,.7*s,C,.4); box(.24*s,.42*s,-.1*s,.5*s,.36*s,.5*s,C,-.6);
+    box(-.2*s,.2*s,.18*s,.45*s,.3*s,.4*s,C,.9); },
+  "جبل": (s,C)=>{ pyramid(0,.55*s,0,1.8*s,1.1*s,1.6*s,C); pyramid(.62*s,.34*s,.1*s,1.1*s,.68*s,1.0*s,"#8d98a6"); pyramid(-.6*s,.26*s,-.15*s,.9*s,.52*s,.8*s,"#a3adba"); },
+  "سحابة": (s,C)=>{ ball(0,.62*s,0,.34*s,C); ball(-.34*s,.56*s,.05*s,.24*s,C); ball(.32*s,.58*s,-.06*s,.26*s,C);
+    ball(.05*s,.72*s,.16*s,.2*s,C); },
+  "شمس": (s,C)=>{ ball(0,.7*s,0,.4*s,"#e0b452",18,12);
+    for(let i=0;i<8;i++){ const a=i/8*Math.PI*2;
+      box(Math.cos(a)*.56*s,.7*s+Math.sin(a)*.56*s,0,.14*s,.1*s,.1*s,"#e0b452",0); } },
+  "قمر": (s,C)=>{ ball(0,.7*s,0,.42*s,"#dcdce2",18,12);
+    for(const [x,y,z] of [[.2,.8,.3],[-.24,.62,.16],[.05,.9,-.2]]) cyl(x*s,y*s,z*s,.1*s,.02*s,12,"#b8bcc4"); },
+  "نجمة": (s,C)=>{ pyramid(0,.8*s,0,.9*s,.34*s,.16*s,C);
+    for(const [ang,x,y] of [[-.9,-.4,.62],[.9,.4,.62],[-.5,-.24,.44],[.5,.24,.44]])
+      box(x*s,y*s,0,.44*s,.14*s,.14*s,C,ang);
+    box(0,.26*s,0,.16*s,.32*s,.16*s,C); },
+  "حلقة": (s,C)=>{ for(let i=0;i<20;i++){ const a=i/20*Math.PI*2;
+      box(Math.cos(a)*.5*s,.5*s,Math.sin(a)*.5*s,.16*s,.16*s,.16*s,C,-a); } },
+  "هرم": (s,C)=>{ pyramid(0,.62*s,0,1.2*s,1.24*s,1.2*s,C); },
+  "أسطوانة": (s,C)=>{ cyl(0,.55*s,0,.4*s,1.1*s,24,C); },
+  "لوح": (s,C)=>{ box(0,.5*s,0,1.4*s,.5*s,.14*s,C); },
+  "مفتاح": (s,C)=>{ cyl(0,.62*s,0,.14*s,.06*s,18,C,"z"); box(0,.62*s,-.34*s,.07*s,.07*s,.5*s,C);
+    box(.1*s,.56*s,-.5*s,.14*s,.06*s,.1*s,C); },
+  "سهم": (s,C)=>{ box(0,.5*s,0,.05*s,.05*s,1.2*s,C); pyramid(0,.5*s,.72*s,.16*s,.24*s,.16*s,C,0); },
+};
+
+/* ── معجم الكلمات ← وصفة ── */
+const LEX = [
+  [/(بيت|منزل|دار|house|home|كوخ)/, "بيت"], [/(كرس|chair|مقعد|seat)/, "كرسي"],
+  [/(طاول|table|ميز|desk)/, "طاولة"], [/(شجر|نخل|tree|plant)/, "شجرة"],
+  [/(سيار|car|مركب|vehicle|شاحن|truck|باص|bus)/, "سيارة"], [/(كاس|كوب|cup|mug|فنجان)/, "كأس"],
+  [/(صاروخ|rocket|مكوك)/, "صاروخ"], [/(سيف|سكين|sword|knife|blade|خنجر)/, "سيف"],
+  [/(مصباح|lamp|light|اباجور)/, "مصباح"], [/(برج|tower|عمار|building|ناطح)/, "برج"],
+  [/(مكعب|cube|صندوق|box|block|علب)/, "مكعب"], [/(كره|كورة|ball|sphere)/, "كرة"],
+  [/(باب|door|بواب|gate|نافذ)/, "باب"], [/(جسر|bridge|قنطر)/, "جسر"], [/(قلم|pencil|pen)/, "قلم"],
+  [/(زهر|ورد|flower|rose|نبت|plant)/, "زهرة"], [/(ساع|clock|watch)/, "ساعة"],
+  [/(سرير|bed|فراش)/, "سرير"], [/(كنب|اريك|sofa|couch|اريكه)/, "كنبة"],
+  [/(دراج|سيكل|bike|bicycle|سكوتر)/, "دراجة"], [/(طائر|طيارة|plane|aircraft|jet|هليكوبتر)/, "طائرة"],
+  [/(سفينة فضا|مركبة فضا|spaceship|starship|ufo|طبق طائر)/, "صاروخ"],
+  [/(قارب|سفين|boat|ship|يخت)/, "قارب"],
+  [/(قصر|قلعة|palace|castle|معبد)/, "قصر"], [/(تنين|dragon)/, "تنين"],
+  [/(زحليق|منزلق|slide|ملعب|swing)/, "زحليقة"], [/(روبوت|robot|andro|humanoid|الي)/, "روبوت"],
+  [/(سلم|درج|stairs|ladder|سلالم)/, "سلم"], [/(حاسوب|لابتوب|computer|laptop|كمبيوتر|شاش|monitor)/, "حاسوب"],
+  [/(هاتف|جوال|phone|mobile|موبايل)/, "هاتف"], [/(كتاب|book|مجلد)/, "كتاب"],
+  [/(صخر|حجر|rock|stone)/, "صخرة"], [/(جبل|mountain|تله|هضب)/, "جبل"],
+  [/(سحاب|غيوم|cloud)/, "سحابة"], [/(شمس|sun)/, "شمس"], [/(قمر|moon|هلال)/, "قمر"],
+  [/(نجم|star)/, "نجمة"], [/(حلق|طوق|ring|torus|عجل)/, "حلقة"],
+  [/(هرم|pyramid)/, "هرم"], [/(اسطوان|cylinder|tube|انبوب|برميل)/, "أسطوانة"],
+  [/(لوح|plate|slab|بلاط|شريح)/, "لوح"], [/(مفتاح|key)/, "مفتاح"], [/(سهم|arrow)/, "سهم"],
+];
+
+function rngFrom(str){
+  let h = 2166136261 >>> 0;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return () => { h ^= h<<13; h >>>= 0; h ^= h>>>17; h ^= h<<5; h >>>= 0; return h/4294967296; };
+}
+function arDigits(t){
+  return String(t).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+}
+
+/* ── تحليل الوصف ── */
+function parseDesc(text){
+  const n = norm(arDigits(text));
+  const objs = [];
+  for(const [re,k] of LEX){ if(re.test(n) && !objs.includes(k)) objs.push(k); }
+  /* «سفينة فضاء» مركبة فضائية مو قارب */
+  if(/(فضا|space|ufo|صاروخ)/.test(n)){
+    const i = objs.indexOf("قارب"); if(i >= 0) objs.splice(i,1);
+    if(!objs.includes("صاروخ")) objs.unshift("صاروخ");
+  }
+  let color = null;
+  for(const [re,hex] of COLOR_WORDS){ if(re.test(n)){ color = hex; break; } }
+  let count = 1;
+  for(const w in NUM_WORDS){ if(n.includes(w)) count = NUM_WORDS[w]; }
+  const dm = n.match(/(\d+)/);
+  if(dm){ const v = parseInt(dm[1],10); if(v >= 2 && v <= 6) count = v; }
+  const aspect = {
+    tall: /(طويل|طويله|طويلة|عالي|عالية|مرتفع|tall|high)/.test(n),
+    wide: /(عريض|عريضة|واسع|واسعة|wide|broad)/.test(n),
+    flat: /(مسطح|مسطحة|منبسط|flat)/.test(n),
+    thin: /(نحيف|نحيفة|رقيق|رقيقة|رفيع|thin|slim)/.test(n),
+    round: /(دائري|دائرية|مستدير|round|circular)/.test(n)
+  };
+  return { objs, color, count, size: sizeFrom(text), aspect, text: String(text) };
+}
+
+/* ── مولّد احتياطي: أي كلمة ما نعرفها ← جسم مركّب معقول ── */
+function genericBuild(seed, s, C, plan){
+  const r = rngFrom(seed), n = norm(plan.text);
+  const tallK = plan.aspect.tall ? 1.5 : 1, wideK = plan.aspect.wide ? 1.35 : 1, flatK = plan.aspect.flat ? .5 : 1;
+  const H = s * tallK, W = s * wideK * flatK;
+  if(/(حيوان|قط|كلب|animal|cat|dog|ديناصور|زرافة|giraffe|حصان|horse|طير|bird)/.test(n)){
+    box(0,.42*H,0,.42*W,.5*H,1.1*W,C);
+    box(0,.5*H,.62*W,.3*W,.3*H,.3*W,C);
+    for(const [x,z] of [[-.16,-.4],[.16,-.4],[-.16,.4],[.16,.4]]) box(x*W,.16*H,z*W,.1*W,.32*H,.1*W,C);
+    box(0,.66*H,.72*W,.34*W,.12*H,.18*W,C);
+    box(0,.52*H,-.62*W,.08*W,.4*H,.08*W,C);
+    for(const x of [-1,1]) box(x*.13*W,.56*H,.76*W,.05*W,.05*H,.03*W,"#2b2f36");
+    return;
+  }
+  if(/(شخص|شخصية|رجل|انسان|إنسان|human|character|figure|ولد|بنت)/.test(n)){
+    box(0,.62*H,0,.34*W,.46*H,.2*W,C);
+    ball(0,.98*H,0,.15*W,C,16,10);
+    for(const x of [-1,1]) box(x*.26*W,.62*H,0,.09*W,.42*H,.09*W,C);
+    for(const x of [-1,1]) box(x*.1*W,.22*H,0,.11*W,.44*H,.11*W,"#3b3f47");
+    return;
+  }
+  if(/(فضائي|space|مركبة|vehicle|سفينة|ship|طائرة|صاروخ)/.test(n)){
+    cyl(0,.6*H,0,.24*W,.9*H,16,C,"z");
+    cone(0,.6*H,-.62*H,.24*W,.36*H,16,"#9aa4b2","z");
+    for(const x of [-1,1]) box(x*.4*W,.6*H,.1*H,.5*W,.05*H,.3*W,C);
+    box(0,.72*H,.42*H,.24*W,.12*H,.2*W,"#4f6ea8");
+    return;
+  }
+  /* شكل هيكلي: قاعدة + طبقات + تفاصيل (ثابت لنفس النص) */
+  const layers = 3 + Math.floor(r()*3);
+  let y = 0, w = .9*W;
+  for(let i=0;i<layers;i++){
+    const h = (.2 + r()*.35)*H, nw = w*(.6 + r()*.5);
+    if(i===0) box(0,h/2,0,w,h,w*.9,C);
+    else if(r() < .5) box(0,y + h/2,0,nw,h,nw*.9,C);
+    else cyl(0,y + h/2,0,nw*.45,h,18,C);
+    y += h; w = nw;
+  }
+  if(r() < .7) ball(0,y + .1*H,0,.16*W, tint(C,"default"), 16, 10);
+  const arms = 2 + Math.floor(r()*3);
+  for(let i=0;i<arms;i++){
+    const a = i/arms*Math.PI*2;
+    box(Math.cos(a)*w*.7, y*.55, Math.sin(a)*w*.7, .12*W, y*.7, .12*W, C, -a);
+  }
+}
+
+/* ── تركيب المشهد من الخطة ── */
+function buildOne(key, s, col, plan){
+  if(RECIPES[key]) return RECIPES[key](s, col);
+  if(SHAPES[key]) return SHAPES[key].build(s, col);
+  genericBuild(hash32(key + plan.text), s, col, plan);
+}
+function blendMeshColor(hex, amount){
+  const t = hexRGB(hex);
+  for(let i=0;i<MESH.c.length;i++){
+    const c = hexRGB(MESH.c[i]);
+    const lum = .299*c[0] + .587*c[1] + .114*c[2];
+    /* لا نلوّن التفاصيل الفاتحة (مينا، شاشات) ولا الغامقة (عجلات، حدود) */
+    if(lum > .82 || lum < .22) continue;
+    const r = Math.round((c[0]*(1-amount) + t[0]*amount)*255);
+    const g = Math.round((c[1]*(1-amount) + t[1]*amount)*255);
+    const b = Math.round((c[2]*(1-amount) + t[2]*amount)*255);
+    MESH.c[i] = "#" + [r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,"0")).join("");
+  }
+}
+function applyAspect(a){
+  if(!a) return;
+  let minY = 1e9; for(const v of MESH.v) if(v[1] < minY) minY = v[1];
+  const ky = a.tall ? 1.5 : (a.flat ? .45 : 1);
+  const kxz = a.wide ? 1.35 : (a.thin ? .72 : 1);
+  for(const v of MESH.v){ v[1] = minY + (v[1]-minY)*ky; v[0] *= kxz; v[2] *= kxz; }
+}
+function composeScene(plan, style){
+  RESET();
+  const keys = plan.objs.length ? plan.objs.slice(0,4) : ["__generic"];
+  const n = keys.length;
+  const base = tint("#d8cfc0", style);
+  const s = plan.size * (n > 1 ? .8 : 1);
+  const spots = [[0,0],[-.95,0],[.95,0],[0,.95]];
+  keys.forEach((k,i)=>{
+    const st = MESH.v.length;
+    const col = i % 2 ? tint("#cfd8c8", style) : base;
+    buildOne(k, s, col, plan);
+    if(n > 1){ const [ox,oz] = spots[i] || [0,0]; for(let j=st;j<MESH.v.length;j++){ MESH.v[j][0]+=ox*s; MESH.v[j][2]+=oz*s; } }
+  });
+  /* العدد: نكرّر الجسم كامل */
+  if(plan.count > 1 && n === 1){
+    const v0 = MESH.v.map(v=>v.slice()), f0 = MESH.f.slice(), c0 = MESH.c.slice();
+    for(let c=1;c<plan.count;c++){
+      const off = c * 1.25 * plan.size;
+      const st = MESH.v.length;
+      for(const v of v0) MESH.v.push([v[0]+off, v[1], v[2]]);
+      for(let i=0;i<f0.length;i++){ MESH.f.push(f0[i].map(x=>x+st)); MESH.c.push(c0[i]); }
+    }
+    const cx = -(plan.count-1)*1.25*plan.size/2;
+    for(const v of MESH.v) v[0] += cx;
+  }
+  if(plan.color) blendMeshColor(plan.color, .55);
+  applyAspect(plan.aspect);
+  if(style && style !== "default"){ for(let i=0;i<MESH.c.length;i++) MESH.c[i] = tint(MESH.c[i], style); }
+  return keys;
+}
+function descChips(plan){
+  const el = document.getElementById("parse");
+  if(!el) return;
+  const parts = [];
+  if(plan.objs.length) plan.objs.slice(0,4).forEach(k=>parts.push(`<span>${k}</span>`));
+  else parts.push(`<span class="ai">مولَّد تلقائي</span>`);
+  if(plan.color) parts.push(`<span class="c" style="--c:${plan.color}">لون</span>`);
+  if(plan.count > 1) parts.push(`<span>عدد ${plan.count}</span>`);
+  const asp = Object.entries(plan.aspect).filter(([,v])=>v).map(([k])=>{
+    return {tall:"طويل",wide:"عريض",flat:"مسطّح",thin:"نحيف",round:"دائري"}[k];
+  });
+  asp.forEach(a=>parts.push(`<span>${a}</span>`));
+  el.innerHTML = parts.join("");
+}
+
 function detectAll(t){ const n = norm(t); const out = [];
   for(const [k,re] of Object.entries(KEYWORDS)) if(re.test(n)) out.push(k);
   return out; }
@@ -678,28 +992,32 @@ function generate(text, styleOverride){
   if(!t) return;
   const style = styleOverride || document.getElementById("styleSel").value;
   const mode = document.getElementById("modeSel").value;
-  let order = detectAll(t);
-  if(!order.length) order = ["مكعب"];
-  order = order.slice(0,2);
-  const s = sizeFrom(t);
-  if(mode === "learned"){
-    if(!AI.trained){
-      toast("الموديل ما مدرَّب — جاري التدريب أول مرة…");
-      aiTrain(aiUiProgress).then(() => {
-        aiUiDone();
-        const bs = aiBuildMESH(t, style);
-        CURRENT = { cls:bs.order[0], s:bs.s, label:t.slice(0,18), kinds:bs.order };
-        draw(); updateStat(); addHist(t, style, mode);
-      });
-      return;
-    }
+  const plan = parseDesc(t);
+  descChips(plan);
+  const learnedKeys = ["كرسي","طاولة","بيت","شجرة","سيارة","كأس","صاروخ","سيف","مصباح","برج","مكعب","كرة","باب","جسر","قلم"];
+  const simpleLearned = plan.objs.length === 1 && learnedKeys.includes(plan.objs[0]) &&
+    plan.count === 1 && !plan.color && !Object.values(plan.aspect).some(Boolean);
+
+  if(mode === "learned" && AI.trained && simpleLearned){
     const bs = aiBuildMESH(t, style);
     CURRENT = { cls:bs.order[0], s:bs.s, label:t.slice(0,18), kinds:bs.order };
     draw(); updateStat(); addHist(t, style, mode);
     return;
   }
-  if(mode === "voxel"){ CURRENT = { cls:order[0], s, label:t.slice(0,18), kinds:order }; buildVoxelScene(order, s, style); }
-  else { buildScene(order, s, style); CURRENT = { cls:order[0], s, label:t.slice(0,18), kinds:order }; }
+  if(mode === "learned" && !AI.trained){
+    toast("الموديل يجهّز…");
+    aiAutoStart().then(()=>generate(t, style));
+    return;
+  }
+  if(mode === "voxel"){
+    const order = plan.objs.length ? plan.objs.slice(0,2) : ["مكعب"];
+    CURRENT = { cls:order[0], s:plan.size, label:t.slice(0,18), kinds:order };
+    buildVoxelScene(order, plan.size, style);
+    draw(); updateStat(); addHist(t, style, mode);
+    return;
+  }
+  const keys = composeScene(plan, style);
+  CURRENT = { cls:keys[0], s:plan.size, label:t.slice(0,18), kinds:keys };
   draw(); updateStat();
   addHist(t, style, mode);
 }
@@ -1486,7 +1804,7 @@ document.querySelectorAll(".tabs button").forEach(b => {
   };
 });
 /* اقتراحات */
-const SUGG = ["بيت صغير","كرة كبيرة","جسر حديد","قلم رصاص","كرسي خشبي","شجرة كبيرة","صاروخ فضائي","سيارة حمراء","برج عالي","كأس زجاج","سيف قديم","بيت وشجرة","مصباح طاولة"];
+const SUGG = ["ساعة ذهبية","روبوت أزرق","ثلاث كراسي","سرير خشبي","دراجة حمراء","طائرة صغيرة","جبل كبير","سحابة بيضاء","زهرة وردية","حلقة فضية","قارب شراعي","كتاب قديم","شمس ذهبية","طاولة مع كرسي"];
 const suggEl = document.getElementById("sugg");
 SUGG.forEach(t => { const b = document.createElement("button"); b.textContent = t;
   b.onclick = () => { document.getElementById("prompt").value = t; generate(t); }; suggEl.appendChild(b); });
@@ -1508,6 +1826,10 @@ document.getElementById("tReset").onclick = () => { V.yaw=-0.62; V.pitch=0.36; V
 document.getElementById("tGrid").classList.add("on");
 
 /* توليد */
+document.getElementById("prompt").addEventListener("input", e => {
+  const v = e.target.value.trim();
+  descChips(v ? parseDesc(v) : { objs:[], color:null, count:1, aspect:{} });
+});
 document.getElementById("go").onclick = () => generate(document.getElementById("prompt").value);
 document.getElementById("styleSel").onchange = () => generate(document.getElementById("prompt").value);
 document.getElementById("modeSel").onchange = () => generate(document.getElementById("prompt").value);
@@ -1588,7 +1910,7 @@ function buildGallery(){
 
 /* الميزات */
 const FEATURES = [
-  { t:"نص ← مجسّم", d:"اكتب وصفاً عربياً أو إنكليزياً، ويطلع مجسّم كامل. ١٥ صنفاً + تركيبات من مجسّمين.", im:"M4 6h16M4 12h10M4 18h7", on:true },
+  { t:"أي وصف ← مجسّم", d:"جملة حرة بالعربي أو الإنكليزي: ٣٨+ وصفة، ألوان، أعداد، تركيب حتى ٤ أجسام، ومولّد تلقائي لأي كلمة غريبة.", im:"M4 6h16M4 12h10M4 18h7", on:true },
   { t:"صورة ← مجسّم", d:"ارفع شعاراً أو ظلاً ونتحوّله إلى مجسّم مسطّح قابل للتصدير.", im:"M3 4h18v16H3zM9 10a1.6 1.6 0 100 .1", on:true },
   { t:"زوايا متعددة", d:"٢–٤ صور من زوايا مختلفة، ندمج مساقطها لبناء حجم ثلاثي الأبعاد.", im:"M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3z", on:true },
   { t:"تصدير فوري", d:"OBJ · GLB · STL · PNG — بلا تسجيل ولا انتظار.", im:"M12 3v12M8 11l4 4 4-4M4 19h16", on:true },
