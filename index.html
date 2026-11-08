@@ -847,7 +847,7 @@ function buildVoxelScene(order, s, style){
    نص → ٣٨٤ ميزة مُهشَّرة → ٤٠٩٦ خلية (16³) → شبكة إشغال → مجسّم
    ══════════════════════════════════════════════════════════════ */
 const AI = {
-  N: 24, D: 384, EPOCHS: 50, LR: 0.022, NEG: 0.45,
+  N: 24, D: 384, EPOCHS: 24, LR: 0.024, NEG: 0.45,
   W: null, b: null, trained: false, busy: false,
   iou: 0, iouTest: 0, loss: 0, ms: 0, samples: 0, steps: 0
 };
@@ -1219,7 +1219,7 @@ function aiUiDone(src){
   document.getElementById("aiMeta").innerHTML =
     `<span>train IoU <b>${(AI.iou*100).toFixed(1)}%</b></span>` +
     `<span>unseen IoU <b>${(AI.iouTest*100).toFixed(1)}%</b></span>` +
-    `<span>time <b>${(AI.ms/1000).toFixed(2)}s</b></span>` +
+    `<span>train time <b>${(AI.ms/1000).toFixed(0)}s</b></span>` +
     `<span>samples <b>${AI.samples}</b></span>` +
     `<span>params <b>${(AI_K()*AI.D + AI_K()).toLocaleString("en")}</b></span>`;
 }
@@ -1295,7 +1295,7 @@ async function aiLoadPacked(url){
     }
   }
   AI.W = W; AI.b = bias; AI.trained = true;
-  AI.samples = 120; AI.iou = 1; AI.iouTest = 0.708;
+  AI.samples = 120; AI.iou = 1; AI.iouTest = 0.708; AI.ms = 95600;
 }
 
 /* ── تشغيل تلقائي: أول ما تفتح الصفحة ── */
