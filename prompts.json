@@ -1,0 +1,482 @@
+[
+ {
+  "slug": "chair",
+  "en": "a simple wooden chair with four legs and a backrest",
+  "ar": "كرسي"
+ },
+ {
+  "slug": "table",
+  "en": "a rectangular wooden dining table with four legs",
+  "ar": "طاولة"
+ },
+ {
+  "slug": "house",
+  "en": "a small house with a red pitched roof and a door",
+  "ar": "بيت"
+ },
+ {
+  "slug": "tree",
+  "en": "a low poly tree with a thick trunk and round canopy",
+  "ar": "شجرة"
+ },
+ {
+  "slug": "car",
+  "en": "a compact sedan car",
+  "ar": "سيارة"
+ },
+ {
+  "slug": "cup",
+  "en": "a ceramic coffee cup",
+  "ar": "كأس"
+ },
+ {
+  "slug": "rocket",
+  "en": "a space rocket with fins",
+  "ar": "صاروخ"
+ },
+ {
+  "slug": "sword",
+  "en": "a long sword with a handle and crossguard",
+  "ar": "سيف"
+ },
+ {
+  "slug": "lamp",
+  "en": "a table lamp with a conical shade",
+  "ar": "مصباح"
+ },
+ {
+  "slug": "tower",
+  "en": "a tall stone tower",
+  "ar": "برج"
+ },
+ {
+  "slug": "cube",
+  "en": "a simple cube box",
+  "ar": "مكعب"
+ },
+ {
+  "slug": "ball",
+  "en": "a sphere ball",
+  "ar": "كرة"
+ },
+ {
+  "slug": "door",
+  "en": "a wooden door with a frame",
+  "ar": "باب"
+ },
+ {
+  "slug": "bridge",
+  "en": "a stone arch bridge",
+  "ar": "جسر"
+ },
+ {
+  "slug": "pencil",
+  "en": "a pencil",
+  "ar": "قلم"
+ },
+ {
+  "slug": "clock",
+  "en": "a wall clock with hands and numbers",
+  "ar": "ساعة"
+ },
+ {
+  "slug": "bed",
+  "en": "a bed with a mattress and headboard",
+  "ar": "سرير"
+ },
+ {
+  "slug": "sofa",
+  "en": "a three seat sofa",
+  "ar": "كنبة"
+ },
+ {
+  "slug": "bicycle",
+  "en": "a bicycle with two wheels and a frame",
+  "ar": "دراجة"
+ },
+ {
+  "slug": "airplane",
+  "en": "a small propeller airplane",
+  "ar": "طائرة"
+ },
+ {
+  "slug": "boat",
+  "en": "a small wooden rowing boat",
+  "ar": "قارب"
+ },
+ {
+  "slug": "robot",
+  "en": "a friendly humanoid robot",
+  "ar": "روبوت"
+ },
+ {
+  "slug": "castle",
+  "en": "a medieval castle with towers",
+  "ar": "قصر"
+ },
+ {
+  "slug": "dragon",
+  "en": "a stylized dragon with wings",
+  "ar": "تنين"
+ },
+ {
+  "slug": "slide",
+  "en": "a children playground slide",
+  "ar": "زحليقة"
+ },
+ {
+  "slug": "truck",
+  "en": "a cargo truck with a cab and trailer",
+  "ar": "شاحنة"
+ },
+ {
+  "slug": "train",
+  "en": "a steam locomotive train",
+  "ar": "قطار"
+ },
+ {
+  "slug": "ship",
+  "en": "a sailing ship with masts",
+  "ar": "سفينة"
+ },
+ {
+  "slug": "mosque",
+  "en": "a mosque with a dome and two minarets",
+  "ar": "مسجد"
+ },
+ {
+  "slug": "tv",
+  "en": "a flat screen television on a stand",
+  "ar": "تلفاز"
+ },
+ {
+  "slug": "fridge",
+  "en": "a refrigerator",
+  "ar": "ثلاجة"
+ },
+ {
+  "slug": "wardrobe",
+  "en": "a wooden wardrobe with two doors",
+  "ar": "دولاب"
+ },
+ {
+  "slug": "helicopter",
+  "en": "a helicopter with a main rotor",
+  "ar": "مروحية"
+ },
+ {
+  "slug": "tank",
+  "en": "a military tank with tracks and a cannon",
+  "ar": "دبابة"
+ },
+ {
+  "slug": "mirror",
+  "en": "an oval standing mirror",
+  "ar": "مرآة"
+ },
+ {
+  "slug": "basket",
+  "en": "a woven wicker basket",
+  "ar": "سلة"
+ },
+ {
+  "slug": "ladder",
+  "en": "a wooden ladder",
+  "ar": "سلم"
+ },
+ {
+  "slug": "computer",
+  "en": "a desktop computer monitor and keyboard",
+  "ar": "حاسوب"
+ },
+ {
+  "slug": "phone",
+  "en": "a smartphone",
+  "ar": "هاتف"
+ },
+ {
+  "slug": "book",
+  "en": "a closed hardcover book",
+  "ar": "كتاب"
+ },
+ {
+  "slug": "rock",
+  "en": "a large gray boulder",
+  "ar": "صخرة"
+ },
+ {
+  "slug": "mountain",
+  "en": "a rocky mountain peak",
+  "ar": "جبل"
+ },
+ {
+  "slug": "cloud",
+  "en": "a fluffy cloud",
+  "ar": "سحابة"
+ },
+ {
+  "slug": "sun",
+  "en": "a stylized sun with rays",
+  "ar": "شمس"
+ },
+ {
+  "slug": "moon",
+  "en": "a crescent moon",
+  "ar": "قمر"
+ },
+ {
+  "slug": "star",
+  "en": "a five pointed star",
+  "ar": "نجمة"
+ },
+ {
+  "slug": "ring",
+  "en": "a golden ring",
+  "ar": "حلقة"
+ },
+ {
+  "slug": "pyramid",
+  "en": "an egyptian pyramid",
+  "ar": "هرم"
+ },
+ {
+  "slug": "cylinder",
+  "en": "a metal cylinder",
+  "ar": "اسطوانة"
+ },
+ {
+  "slug": "plank",
+  "en": "a wooden plank",
+  "ar": "لوح"
+ },
+ {
+  "slug": "key",
+  "en": "an old metal key",
+  "ar": "مفتاح"
+ },
+ {
+  "slug": "arrow",
+  "en": "an arrow with fletching",
+  "ar": "سهم"
+ },
+ {
+  "slug": "flower",
+  "en": "a flower with petals and stem",
+  "ar": "زهرة"
+ },
+ {
+  "slug": "fish",
+  "en": "a small fish",
+  "ar": "سمكة"
+ },
+ {
+  "slug": "bird",
+  "en": "a small bird",
+  "ar": "طائر"
+ },
+ {
+  "slug": "cat",
+  "en": "a sitting cat",
+  "ar": "قطة"
+ },
+ {
+  "slug": "dog",
+  "en": "a standing dog",
+  "ar": "كلب"
+ },
+ {
+  "slug": "horse",
+  "en": "a standing horse",
+  "ar": "حصان"
+ },
+ {
+  "slug": "camera",
+  "en": "a photo camera",
+  "ar": "كاميرا"
+ },
+ {
+  "slug": "guitar",
+  "en": "an acoustic guitar",
+  "ar": "قيثارة"
+ },
+ {
+  "slug": "piano",
+  "en": "an upright piano",
+  "ar": "بيانو"
+ },
+ {
+  "slug": "barrel",
+  "en": "a wooden barrel",
+  "ar": "برميل"
+ },
+ {
+  "slug": "fence",
+  "en": "a wooden fence section",
+  "ar": "سياج"
+ },
+ {
+  "slug": "well",
+  "en": "a stone water well",
+  "ar": "بئر"
+ },
+ {
+  "slug": "tent",
+  "en": "a camping tent",
+  "ar": "خيمة"
+ },
+ {
+  "slug": "bus",
+  "en": "a city bus",
+  "ar": "باص"
+ },
+ {
+  "slug": "motorcycle",
+  "en": "a motorcycle",
+  "ar": "دراجة نارية"
+ },
+ {
+  "slug": "fountain",
+  "en": "a stone fountain",
+  "ar": "نافورة"
+ },
+ {
+  "slug": "statue",
+  "en": "a marble statue of a person",
+  "ar": "تمثال"
+ },
+ {
+  "slug": "vase",
+  "en": "a ceramic vase",
+  "ar": "مزهرية"
+ },
+ {
+  "slug": "candle",
+  "en": "a burning candle",
+  "ar": "شمعة"
+ },
+ {
+  "slug": "bottle",
+  "en": "a glass bottle",
+  "ar": "قنينة"
+ },
+ {
+  "slug": "globe",
+  "en": "a world globe on a stand",
+  "ar": "كرة أرضية"
+ },
+ {
+  "slug": "drum",
+  "en": "a drum",
+  "ar": "طبل"
+ },
+ {
+  "slug": "umbrella",
+  "en": "an open umbrella",
+  "ar": "مظلة"
+ },
+ {
+  "slug": "bench",
+  "en": "a park bench",
+  "ar": "مقعد"
+ },
+ {
+  "slug": "stairs",
+  "en": "a short staircase",
+  "ar": "درج"
+ },
+ {
+  "slug": "fountain_pen",
+  "en": "a fountain pen",
+  "ar": "قلم حبر"
+ },
+ {
+  "slug": "teddy",
+  "en": "a teddy bear",
+  "ar": "دبدوب"
+ },
+ {
+  "slug": "crown",
+  "en": "a golden crown",
+  "ar": "تاج"
+ },
+ {
+  "slug": "shield",
+  "en": "a round shield",
+  "ar": "درع"
+ },
+ {
+  "slug": "axe",
+  "en": "an axe with a wooden handle",
+  "ar": "فأس"
+ },
+ {
+  "slug": "hammer",
+  "en": "a hammer",
+  "ar": "مطرقة"
+ },
+ {
+  "slug": "shovel",
+  "en": "a shovel",
+  "ar": "مجرفة"
+ },
+ {
+  "slug": "bucket",
+  "en": "a metal bucket",
+  "ar": "دلو"
+ },
+ {
+  "slug": "suitcase",
+  "en": "a travel suitcase",
+  "ar": "حقيبة"
+ },
+ {
+  "slug": "helmet",
+  "en": "a motorcycle helmet",
+  "ar": "خوذة"
+ },
+ {
+  "slug": "goggles",
+  "en": "swimming goggles",
+  "ar": "نظارة"
+ },
+ {
+  "slug": "shoe",
+  "en": "a leather shoe",
+  "ar": "حذاء"
+ },
+ {
+  "slug": "hat",
+  "en": "a wide brim hat",
+  "ar": "قبعة"
+ },
+ {
+  "slug": "glove",
+  "en": "a leather glove",
+  "ar": "قفاز"
+ },
+ {
+  "slug": "watch",
+  "en": "a wrist watch",
+  "ar": "ساعة يد"
+ },
+ {
+  "slug": "keyboard",
+  "en": "a computer keyboard",
+  "ar": "لوحة مفاتيح"
+ },
+ {
+  "slug": "mouse",
+  "en": "a computer mouse",
+  "ar": "فأرة"
+ },
+ {
+  "slug": "speaker",
+  "en": "a bluetooth speaker",
+  "ar": "مكبر صوت"
+ },
+ {
+  "slug": "printer",
+  "en": "an office printer",
+  "ar": "طابعة"
+ }
+]
