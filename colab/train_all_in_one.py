@@ -82,9 +82,17 @@ def read_off(p):
     return _clean(V, F)
 
 def vox(V,F,N=32):
+    # فلتر الشواذ: لازم نعيد ترقيم الوجوه بعد الحذف وإلا تنفجر الفهارس
     lo,hi=np.percentile(V,0.5,axis=0),np.percentile(V,99.5,axis=0)
     k=np.all((V>=lo)&(V<=hi),axis=1)
-    if k.sum()>100: V=V[k]
+    if k.sum()>100 and k.sum()<len(V):
+        remap=-np.ones(len(V),dtype=np.int64)
+        remap[k]=np.arange(int(k.sum()))
+        F=remap[F]
+        F=F[(F>=0).all(1)]
+        V=V[k]
+        if len(F)<20 or len(V)<20:
+            raise ValueError("empty after outlier filter")
     mn,mx=V.min(0),V.max(0); sp=float((mx-mn).max()) or 1
     G=np.empty_like(V)
     G[:,0]=(V[:,0]-(mn[0]+mx[0])/2)/sp*N+N/2
