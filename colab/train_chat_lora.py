@@ -5,7 +5,7 @@
 import os, sys, subprocess, time, json, glob
 
 # ── اختَر النموذج والساعة هون ────────────────────────────────
-MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
+MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
 #  خيارات:  "Qwen/Qwen2.5-1.5B-Instruct"  ← أسرع (٥ دقايق)
 #           "Qwen/Qwen2.5-3B-Instruct"    ← متوازن (٢٠ دقيقة)
 #           "Qwen/Qwen2.5-7B-Instruct"    ← الأقوى (٦٠-٩٠ دقيقة، ضيّق)
