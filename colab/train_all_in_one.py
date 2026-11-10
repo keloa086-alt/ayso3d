@@ -190,7 +190,7 @@ for o,c in zip(OCCS,CLS):
 X=torch.from_numpy(np.array(X)); Y=torch.from_numpy(np.array(Y))
 print("   عيّنات:", len(X))
 opt=torch.optim.AdamW(M.parameters(),lr=2e-3,weight_decay=1e-4)
-EP=30; BS=16
+EP=200; BS=16
 steps=max(1,len(X)//BS)
 sch=torch.optim.lr_scheduler.OneCycleLR(opt,max_lr=2e-3,total_steps=EP*steps)
 pw=torch.tensor(float(1/max(OCCS.mean(),1e-3)-1)).to(dev)
@@ -204,7 +204,8 @@ for e in range(EP):
         loss=crit(M(x),y); opt.zero_grad(); loss.backward()
         torch.nn.utils.clip_grad_norm_(M.parameters(),1.0); opt.step(); sch.step()
         tot+=loss.item(); n+=1
-    print(f"   epoch {e+1:2d}/{EP} · loss {tot/n:.4f} · {(time.time()-t0)/60:.1f}د")
+    if (e+1) % 10 == 0 or e == 0:
+        print(f"   epoch {e+1:3d}/{EP} · loss {tot/n:.4f} · {(time.time()-t0)/60:.1f}د")
 
 print("٦) التقييم…")
 M.eval()
@@ -214,13 +215,26 @@ def pred(t):
     return p>.5,p
 def iou(a,b):
     i=np.logical_and(a,b).sum(); u=np.logical_or(a,b).sum(); return i/u if u else 0
+# معايرة: ندور أفضل عتبة على النصوص المشوفة، ونستخدمها للجديدة
+best_t, best_s = .5, -1
+for t in np.arange(.10,.91,.05):
+    ss=0
+    for o,c in zip(OCCS,CLS):
+        ss+=iou(pred(NAMES.get(c,[c])[0])[1] > t, o)
+    ss/=len(OCCS)
+    if ss>best_s: best_s, best_t = ss, t
+print("   عتبة معايَرة:", round(best_t,2))
+pf=[]; 
+for o,c in zip(OCCS,CLS):
+    pf.append((pred(NAMES.get(c,[c])[0])[1] > best_t).mean())
+print("   امتلاء المتوقع:", round(float(np.mean(pf))*100,2),"% | الحقيقي:", round(OCCS.mean()*100,2),"%")
 s=0
-for o,c in zip(OCCS,CLS): s+=iou(pred(NAMES.get(c,[c])[0])[0],o)
-print("   IoU نصوص شُوفت :", round(s/len(OCCS)*100,1),"%")
+for o,c in zip(OCCS,CLS): s+=iou(pred(NAMES.get(c,[c])[0])[1] > best_t, o)
+print("   IoU نصوص شُوفت :", round(s/len(OCCS)*100,1)," %")
 s=0
 for o,c in zip(OCCS,CLS):
     nm = NAMES.get(c,[c,c,c])[TRAIN_N]   # صيغة لم تُرَ بالتدريب
-    s+=iou(pred(nm)[0],o)
+    s+=iou(pred(nm)[1] > best_t, o)
 print("   IoU نصوص جديدة :", round(s/len(OCCS)*100,1),"%  (صيغة محجوزة)")
 avg={c:(OCCS[CLS==c].mean(0)>.5) for c in set(CLS)}
 print("   سقف الشكل المتوسط:", round(sum(iou(avg[c],o) for o,c in zip(OCCS,CLS))/len(OCCS)*100,1),"%")
@@ -243,7 +257,7 @@ try:
     from skimage import measure; import trimesh
     for t in ["chair","table","car","lamp"]:
         _,pr=pred(t)
-        v,f,_,_=measure.marching_cubes(pr.astype(np.float32),level=.5)
+        v,f,_,_=measure.marching_cubes(pr.astype(np.float32),level=float(best_t))
         me=trimesh.Trimesh(v,f,process=True); me.apply_scale(1/32)
         me.export(f"/content/{t}.glb"); print(f"   {t}.glb ✓ {len(me.faces)}")
 except Exception as ex: print("   GLB فشل:",str(ex)[:90])
