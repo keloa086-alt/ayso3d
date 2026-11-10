@@ -12,7 +12,7 @@ import torch, torch.nn as nn
 print("   GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "❌ ماكو كارت")
 
 print("٢) تثبيت…")
-os.system("pip -q install trimesh scikit-image 2>/dev/null")
+os.system("pip -q install trimesh scikit-image onnx onnxscript 2>/dev/null")
 
 print("٣) تنزيل ١٢ مجسّم لكل صنف…")
 from huggingface_hub import list_repo_files, hf_hub_download
@@ -31,7 +31,13 @@ for i,f in enumerate(need):
 
 print("٤) فوكسلة…")
 import numpy as np, glob
-def read_off(p):
+def read_off_trimesh(p):
+    import trimesh
+    m = trimesh.load(p, force='mesh', process=False)
+    return (np.asarray(m.vertices, dtype=np.float32),
+            np.asarray(m.faces, dtype=np.int32))
+
+def read_off_fast(p):
     raw = open(p,'rb').read()
     i = raw.find(b'OFF')
     body = raw[i+3:].decode('latin1')
@@ -60,6 +66,15 @@ def read_off(p):
         else:
             j += 1 + m
     return V, np.array(F, dtype=np.int32)
+
+def read_off(p):
+    try:
+        V, F = read_off_fast(p)
+        if len(V) > 20 and len(F) > 10:
+            return V, F
+    except Exception:
+        pass
+    return read_off_trimesh(p)
 
 def vox(V,F,N=32):
     lo,hi=np.percentile(V,0.5,axis=0),np.percentile(V,99.5,axis=0)
@@ -109,6 +124,8 @@ for c in CLASSES:
     print(f"   {c:12s} {sum(1 for x in CLS if x==c)}")
 if FAIL:
     print("   فشل:", len(FAIL), "ملف · أسباب:", list(FAIL.values())[:3])
+else:
+    print("   كل الملفات نجحت ✓")
 OCCS=np.array(OCCS,bool); CLS=np.array(CLS)
 print("   المجموع:", OCCS.shape, "| امتلاء", round(OCCS.mean()*100,2),"%")
 
