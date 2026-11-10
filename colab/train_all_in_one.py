@@ -12,7 +12,13 @@ import torch, torch.nn as nn
 print("   GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "❌ ماكو كارت")
 
 print("٢) تثبيت…")
-os.system("pip -q install trimesh scikit-image onnx onnxscript 2>/dev/null")
+import subprocess
+subprocess.run([sys.executable,"-m","pip","install","-q","trimesh","scikit-image","onnx","onnxscript"],
+               capture_output=True)
+try:
+    import onnx; print("   onnx:", onnx.__version__)
+except Exception as e:
+    print("   onnx ناقص (ما يضر)", str(e)[:40])
 
 print("٣) تنزيل ١٢ مجسّم لكل صنف…")
 from huggingface_hub import list_repo_files, hf_hub_download
@@ -31,17 +37,27 @@ for i,f in enumerate(need):
 
 print("٤) فوكسلة…")
 import numpy as np, glob
-def read_off_trimesh(p):
-    import trimesh
-    m = trimesh.load(p, force='mesh', process=False)
-    return (np.asarray(m.vertices, dtype=np.float32),
-            np.asarray(m.faces, dtype=np.int32))
+def _clean(V, F):
+    """يشيل الوجوه اللي تشير لرؤوس غير موجودة"""
+    V = np.asarray(V, dtype=np.float32)
+    F = np.asarray(F, dtype=np.int32)
+    ok = (F >= 0).all(1) & (F < len(V)).all(1)
+    return V, F[ok]
 
-def read_off_fast(p):
-    raw = open(p,'rb').read()
+def read_off(p):
+    # trimesh هو المرجع — يقرأ كل صيغ OFF مهما كانت الترويسة مكسورة
+    try:
+        import trimesh
+        m = trimesh.load(p, force='mesh', process=False)
+        V, F = _clean(m.vertices, m.faces)
+        if len(V) > 20 and len(F) > 10:
+            return V, F
+    except Exception:
+        pass
+    # خطة بديلة: قارئ سريع
+    raw = open(p, 'rb').read()
     i = raw.find(b'OFF')
-    body = raw[i+3:].decode('latin1')
-    lines = body.split('\n')
+    lines = raw[i+3:].decode('latin1').split('\n')
     k = 0
     while not lines[k].strip(): k += 1
     head = lines[k].split()
@@ -50,31 +66,20 @@ def read_off_fast(p):
     else:
         k += 1; head = lines[k].split(); nv, nf = int(head[0]), int(head[1]); k += 1
     toks = '\n'.join(lines[k:]).split()
-    nv3 = nv * 3
-    V = np.array(toks[:nv3], dtype=np.float32).reshape(nv, 3)
-    rest = toks[nv3:]
-    F = []
-    j = 0
-    while j < len(rest) and len(F) < nf * 2:
-        m = int(float(rest[j]))
-        if m == 3:
+    V = np.array(toks[:nv*3], dtype=np.float32).reshape(nv, 3)
+    rest = toks[nv*3:]
+    F, j = [], 0
+    while j < len(rest) and len(F) < nf*2:
+        m2 = int(float(rest[j]))
+        if m2 == 3:
             F.append((int(float(rest[j+1])), int(float(rest[j+2])), int(float(rest[j+3])))); j += 4
-        elif m == 4:
+        elif m2 == 4:
             a,b,c,e = (int(float(rest[j+1])), int(float(rest[j+2])),
                        int(float(rest[j+3])), int(float(rest[j+4])))
             F.append((a,b,c)); F.append((a,c,e)); j += 5
         else:
-            j += 1 + m
-    return V, np.array(F, dtype=np.int32)
-
-def read_off(p):
-    try:
-        V, F = read_off_fast(p)
-        if len(V) > 20 and len(F) > 10:
-            return V, F
-    except Exception:
-        pass
-    return read_off_trimesh(p)
+            j += 1 + m2
+    return _clean(V, F)
 
 def vox(V,F,N=32):
     lo,hi=np.percentile(V,0.5,axis=0),np.percentile(V,99.5,axis=0)
@@ -118,6 +123,9 @@ for c in CLASSES:
             V,F=read_off(f)
             if len(V)<=20 or len(F)<=10:
                 FAIL[f.split('/')[-1]]="too small"; continue
+            V,F=_clean(V,F)
+            if len(F) < 20:
+                FAIL[f.split('/')[-1]]="no faces after clean"; continue
             OCCS.append(vox(V,F)); CLS.append(c)
         except Exception as ex:
             FAIL[f.split('/')[-1]]=str(ex)[:60]
