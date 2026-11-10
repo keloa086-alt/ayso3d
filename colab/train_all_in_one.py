@@ -2,7 +2,11 @@
 #  Ayso 3D — تدريب بكولاب: خلية واحدة، فهم مباشر
 #  Runtime → Change runtime type → T4 GPU  ← قبل التشغيل
 # ═══════════════════════════════════════════════════════════
-import sys, os, time; sys.stdout.reconfigure(line_buffering=True)
+import sys, os, time
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except Exception:
+    pass
 print("١) فحص الكارت…")
 import torch, torch.nn as nn
 print("   GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "❌ ماكو كارت")
