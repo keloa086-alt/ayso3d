@@ -32,19 +32,35 @@ for i,f in enumerate(need):
 print("٤) فوكسلة…")
 import numpy as np, glob
 def read_off(p):
-    L=open(p,'rb').read().decode('latin1').split('\n'); i=0
-    while 'OFF' not in L[i]: i+=1
-    h=L[i].replace('OFF','').strip().split()
-    if len(h)>=2: nv,nf=int(h[0]),int(h[1]); i+=1
-    else: i+=1; h=L[i].split(); nv,nf=int(h[0]),int(h[1]); i+=1
-    V=np.array(' '.join(L[i:i+nv]).split(),dtype=np.float32).reshape(nv,3); i+=nv
-    b=' '.join(L[i:i+nf]).split(); F=[];k=0
-    while k<len(b):
-        m=int(b[k])
-        if m==3: F.append((int(b[k+1]),int(b[k+2]),int(b[k+3]))); k+=4
-        elif m==4: F.append((int(b[k+1]),int(b[k+2]),int(b[k+3]))); F.append((int(b[k+1]),int(b[k+3]),int(b[k+4]))); k+=5
-        else: k+=1+m
-    return V,np.array(F,np.int32)
+    raw = open(p,'rb').read()
+    i = raw.find(b'OFF')
+    body = raw[i+3:].decode('latin1')
+    lines = body.split('\n')
+    k = 0
+    while not lines[k].strip(): k += 1
+    head = lines[k].split()
+    if len(head) >= 2:
+        nv, nf = int(head[0]), int(head[1]); k += 1
+    else:
+        k += 1; head = lines[k].split(); nv, nf = int(head[0]), int(head[1]); k += 1
+    toks = '\n'.join(lines[k:]).split()
+    nv3 = nv * 3
+    V = np.array(toks[:nv3], dtype=np.float32).reshape(nv, 3)
+    rest = toks[nv3:]
+    F = []
+    j = 0
+    while j < len(rest) and len(F) < nf * 2:
+        m = int(float(rest[j]))
+        if m == 3:
+            F.append((int(float(rest[j+1])), int(float(rest[j+2])), int(float(rest[j+3])))); j += 4
+        elif m == 4:
+            a,b,c,e = (int(float(rest[j+1])), int(float(rest[j+2])),
+                       int(float(rest[j+3])), int(float(rest[j+4])))
+            F.append((a,b,c)); F.append((a,c,e)); j += 5
+        else:
+            j += 1 + m
+    return V, np.array(F, dtype=np.int32)
+
 def vox(V,F,N=32):
     lo,hi=np.percentile(V,0.5,axis=0),np.percentile(V,99.5,axis=0)
     k=np.all((V>=lo)&(V<=hi),axis=1)
@@ -80,14 +96,19 @@ def vox(V,F,N=32):
         if np.array_equal(nw,air): break
         air=nw
     return ~air
-OCCS,CLS=[],[]
+OCCS,CLS=[],[]; FAIL={}
 for c in CLASSES:
     for f in sorted(glob.glob(f"/content/data/ModelNet40/{c}/train/*.off"))[:12]:
         try:
             V,F=read_off(f)
-            if len(V)>20 and len(F)>10: OCCS.append(vox(V,F)); CLS.append(c)
-        except Exception: pass
+            if len(V)<=20 or len(F)<=10:
+                FAIL[f.split('/')[-1]]="too small"; continue
+            OCCS.append(vox(V,F)); CLS.append(c)
+        except Exception as ex:
+            FAIL[f.split('/')[-1]]=str(ex)[:60]
     print(f"   {c:12s} {sum(1 for x in CLS if x==c)}")
+if FAIL:
+    print("   فشل:", len(FAIL), "ملف · أسباب:", list(FAIL.values())[:3])
 OCCS=np.array(OCCS,bool); CLS=np.array(CLS)
 print("   المجموع:", OCCS.shape, "| امتلاء", round(OCCS.mean()*100,2),"%")
 
@@ -113,6 +134,8 @@ NAMES={"airplane":["airplane","طائرة","jet plane"],"bed":["bed","سرير",
 "laptop":["laptop","حاسوب محمول","notebook"],"monitor":["monitor","شاشة","screen"],
 "plant":["plant","نبات","green plant"],"sofa":["sofa","أريكة","couch"],
 "table":["table","طاولة","dining table"],"vase":["vase","مزهرية","ceramic vase"]}
+TRAIN_N = 2          # ندرب على أول صيغتين، والثالثة للاختبار
+
 class Gen(nn.Module):
     def __init__(s):
         super().__init__()
@@ -130,7 +153,7 @@ M=Gen().to(dev)
 print("   بارامترات:", f"{sum(p.numel() for p in M.parameters()):,}")
 X=[];Y=[]
 for o,c in zip(OCCS,CLS):
-    for nm in NAMES.get(c,[c]): X.append(feat(nm)); Y.append(o.astype(np.float32))
+    for nm in NAMES.get(c,[c])[:TRAIN_N]: X.append(feat(nm)); Y.append(o.astype(np.float32))
 X=torch.from_numpy(np.array(X)); Y=torch.from_numpy(np.array(Y))
 print("   عيّنات:", len(X))
 opt=torch.optim.AdamW(M.parameters(),lr=2e-3,weight_decay=1e-4)
@@ -162,8 +185,10 @@ s=0
 for o,c in zip(OCCS,CLS): s+=iou(pred(NAMES.get(c,[c])[0])[0],o)
 print("   IoU نصوص شُوفت :", round(s/len(OCCS)*100,1),"%")
 s=0
-for o,c in zip(OCCS,CLS): s+=iou(pred(c.replace('_',' '))[0],o)
-print("   IoU نصوص جديدة :", round(s/len(OCCS)*100,1),"%")
+for o,c in zip(OCCS,CLS):
+    nm = NAMES.get(c,[c,c,c])[TRAIN_N]   # صيغة لم تُرَ بالتدريب
+    s+=iou(pred(nm)[0],o)
+print("   IoU نصوص جديدة :", round(s/len(OCCS)*100,1),"%  (صيغة محجوزة)")
 avg={c:(OCCS[CLS==c].mean(0)>.5) for c in set(CLS)}
 print("   سقف الشكل المتوسط:", round(sum(iou(avg[c],o) for o,c in zip(OCCS,CLS))/len(OCCS)*100,1),"%")
 print("   خط الأساس فاضي :", round((1-OCCS.mean())*100,1),"%")
@@ -171,9 +196,14 @@ print("   خط الأساس فاضي :", round((1-OCCS.mean())*100,1),"%")
 print("٧) تصدير…")
 torch.save(M.state_dict(),"/content/ayso3d_state.pt")
 try:
-    torch.onnx.export(M,torch.zeros(1,D).to(dev),"/content/ayso3d.onnx",
-        input_names=["text"],output_names=["logits"],
-        dynamic_axes={"text":{0:"batch"},"logits":{0:"batch"}},opset_version=17)
+    try:
+        torch.onnx.export(M,torch.zeros(1,D).to(dev),"/content/ayso3d.onnx",
+            input_names=["text"],output_names=["logits"],
+            dynamic_axes={"text":{0:"batch"},"logits":{0:"batch"}},
+            opset_version=17, dynamo=False)
+    except TypeError:
+        torch.onnx.export(M,torch.zeros(1,D).to(dev),"/content/ayso3d.onnx",
+            input_names=["text"],output_names=["logits"],opset_version=17)
     print("   ONNX ✓")
 except Exception as ex: print("   ONNX فشل:",str(ex)[:90])
 try:
@@ -191,4 +221,6 @@ print("╚═══════════════════════�
 try:
     from google.colab import files
     files.download("/content/ayso3d-model.zip")
-except Exception: print("نزّله يدوياً من مجلد /content")
+except Exception:
+    print("نزّله يدوياً بهذا السطر:")
+    print("from google.colab import files; files.download('/content/ayso3d-model.zip')")
