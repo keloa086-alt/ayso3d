@@ -5,11 +5,17 @@
 import os, sys, subprocess, time, json, glob
 
 # ── اختَر النموذج والساعة هون ────────────────────────────────
-MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"   # ٣B — مستقر على T4
-# بدائل: "Qwen/Qwen2.5-1.5B-Instruct" (أسرع) · "Qwen/Qwen2.5-7B-Instruct" (أقوى، ضيّق)
-MAX_SAMPLES = 2000       # كم سؤال من الدataset
-EPOCHS      = 1
-MAX_LEN     = 512
+MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
+#  خيارات:  "Qwen/Qwen2.5-1.5B-Instruct"  ← أسرع (٥ دقايق)
+#           "Qwen/Qwen2.5-3B-Instruct"    ← متوازن (٢٠ دقيقة)
+#           "Qwen/Qwen2.5-7B-Instruct"    ← الأقوى (٦٠-٩٠ دقيقة، ضيّق)
+#           "humain-ai/ALLaM-7B-Instruct-preview"  ← أفضل عربي (يحتاج موافقة)
+
+#  ── إعدادات تلقائية حسب حجم النموذج ──
+if "1.5B" in MODEL_ID:   MAX_LEN, MAX_SAMPLES, GRAD_ACC = 512, 3000, 8
+elif "3B" in MODEL_ID:   MAX_LEN, MAX_SAMPLES, GRAD_ACC = 512, 2000, 8
+else:                     MAX_LEN, MAX_SAMPLES, GRAD_ACC = 256,  800, 16
+EPOCHS = 1
 
 print("١) فحص الكارت…")
 r = subprocess.run(["nvidia-smi","--query-gpu=name,memory.total","--format=csv,noheader"],
@@ -27,7 +33,7 @@ print("   CUDA متاح:", torch.cuda.is_available())
 dev = "cuda" if torch.cuda.is_available() else "cpu"
 dt  = torch.float16 if dev == "cuda" else torch.float32
 
-print("٣) تنزيل النموذج", MODEL_ID)
+print(f"٣) تنزيل النموذج {MODEL_ID} · max_len={MAX_LEN} · عيّنات={MAX_SAMPLES} · grad_accum={GRAD_ACC}")
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 quant = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
                            bnb_4bit_compute_dtype=dt, bnb_4bit_use_double_quant=True) if dev=="cuda" else None
@@ -77,7 +83,7 @@ print("٦) التدريب…")
 from trl import SFTTrainer, SFTConfig
 args = SFTConfig(
     output_dir="/content/ayso_chat_lora",
-    per_device_train_batch_size=1, gradient_accumulation_steps=8,
+    per_device_train_batch_size=1, gradient_accumulation_steps=GRAD_ACC,
     num_train_epochs=EPOCHS, learning_rate=2e-4,
     lr_scheduler_type="cosine", warmup_ratio=0.03,
     logging_steps=10, save_strategy="no", report_to="none",
