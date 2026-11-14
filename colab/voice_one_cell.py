@@ -36,19 +36,20 @@ RATE  = "-5%"                  # أبطأ قليلاً = أوضح
 GEMINI_KEY = os.environ.get("GEMINI_KEY","")  # اختياري: مفتاح Gemini
 # ═══════════════════════════════════
 
-# ═══ السمع: whisper-large-v3-turbo (أدق بمراحل من small) ═══
-ASR_MODEL = "openai/whisper-large-v3-turbo"
-try:
-    asr = pipeline("automatic-speech-recognition", model=ASR_MODEL,
-                   device=0 if dev=="cuda" else -1,
-                   torch_dtype=torch.float16 if dev=="cuda" else torch.float32,
-                   chunk_length_s=30, batch_size=8)
-except Exception as e:
-    print("large-v3-turbo فشل، نرجع small:", str(e)[:60], flush=True)
-    asr = pipeline("automatic-speech-recognition", model="openai/whisper-small",
-                   device=0 if dev=="cuda" else -1)
+# ═══ السمع: نجرّب عدة نماذج بالترتيب ═══
+ASR = None
+ASR_NAME = "none"
+for _m in ("openai/whisper-large-v3-turbo", "openai/whisper-small"):
+    try:
+        ASR = pipeline("automatic-speech-recognition", model=_m,
+                       device=0 if dev == "cuda" else -1,
+                       chunk_length_s=30)
+        ASR_NAME = _m
+        print("ASR", _m, flush=True)
+        break
+    except Exception as e:
+        print("ASR fail", _m, str(e)[:80], flush=True)
 
-# توجيه: يعرّف Whisper الكلمات العراقية وأسماء التطبيقات
 IRAQ_PROMPT = ("المتحدث عراقي. كلمات شائعة: شنو، شلون، هسه، هواي، اكو، ماكو، "
                "هيج، چان، اريد، اكدر، ادخل، فتح، دوس، شوف، هات، روح، "
                "واتساب، تلغرام، يوتيوب، انستغرام، فيسبوك، تيك توك، كروم، المتجر، "
@@ -531,14 +532,24 @@ async def voice(file: UploadFile = File(...), request: Request = None):
         import librosa; data = librosa.resample(data, orig_sr=sr, target_sr=16000)
     if float(np.abs(data).max()) < 0.005:
         return {"heard":"","reply":"ما سمعت صوت — قرب المايك","audio":"","fmt":"none"}
+    heard = ""
     try:
-        heard = asr({"raw":data.astype(np.float32),"sampling_rate":16000},
-                    generate_kwargs={"language": "ar", "task": "transcribe",
-                                     "initial_prompt": IRAQ_PROMPT +                                          (" تطبيقاته: " + APPS_NAMES if APPS_NAMES else ""),
-                                     "temperature": 0.0,
-                                     "condition_on_prev_tokens": False})["text"].strip()
+        base_kw = {"language": "ar", "task": "transcribe",
+                   "initial_prompt": IRAQ_PROMPT + ((" تطبيقاته: " + APPS_NAMES) if APPS_NAMES else "")}
+        for kw in (dict(base_kw, temperature=0.0),
+                   dict(base_kw),
+                   {"language": "ar", "task": "transcribe"},
+                   {}):
+            try:
+                heard = ASR({"raw": data.astype(np.float32), "sampling_rate": 16000},
+                            generate_kwargs=kw)["text"].strip()
+                if heard:
+                    break
+            except Exception as _e:
+                print("ASR retry:", str(_e)[:70], flush=True)
+                continue
     except Exception as e:
-        return {"heard":"","reply":f"خطأ سمع: {str(e)[:40]}","audio":"","fmt":"none"}
+        return {"heard": "", "reply": "خطأ السمع: " + str(e)[:60], "audio": "", "fmt": "none"}
     if not heard:
         return {"heard":"","reply":"ما كو شي واضح","audio":"","fmt":"none"}
     extract_facts(heard)
