@@ -16,7 +16,7 @@ time.sleep(1)
 print("\n١) تثبيت…")
 subprocess.run([sys.executable,"-m","pip","install","-q","-U",
     "fastapi","uvicorn","python-multipart","transformers>=4.44","accelerate",
-    "soundfile","librosa","bitsandbytes"], check=False)
+    "soundfile","librosa","bitsandbytes","edge-tts"], check=False)
 print("   ✓")
 
 # ── ٢) ملف السيرفر ──
@@ -43,9 +43,21 @@ llm = AutoModelForCausalLM.from_pretrained(MID, quantization_config=q,
 llm.eval()
 print("LLM ok", flush=True)
 
-tts_tok = AT.from_pretrained("facebook/mms-tts-ara")
-tts = VitsModel.from_pretrained("facebook/mms-tts-ara").to(dev).eval()
-print("TTS ok", flush=True)
+# ── محرك الكلام: نحاول Edge-TTS (أفضل عربي) ثم نرجع لـMMS ──
+TTS_MODE = "mms"
+try:
+    import edge_tts
+    TTS_MODE = "edge"
+    print("TTS edge-tts ok", flush=True)
+except Exception:
+    pass
+
+tts_tok = None; tts = None
+if TTS_MODE == "mms":
+    from transformers import VitsModel
+    tts_tok = AT.from_pretrained("facebook/mms-tts-ara")
+    tts = VitsModel.from_pretrained("facebook/mms-tts-ara").to(dev).eval()
+    print("TTS mms ok", flush=True)
 
 SYS = "أنت مساعد صوتي عراقي. جاوب بجملة أو جملتين قصيرة بلهجة عراقية بسيطة، بلا إيموجي."
 
@@ -58,12 +70,33 @@ def think(t):
                        top_p=0.9, pad_token_id=tok.eos_token_id)
     return tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
+import asyncio
+
+async def _edge_wav(text, voice):
+    import edge_tts
+    c = edge_tts.Communicate(text, voice)
+    buf = b""
+    async for ch in c.stream():
+        if ch["type"] == "audio":
+            buf += ch["data"]
+    return buf  # mp3
+
 def speak(t):
+    if TTS_MODE == "edge":
+        # أصوات عربية: ar-IQ-BasselNeural (عراقي) · ar-EG-SalmaNeural · ar-SA-HamedNeural
+        for v in ("ar-IQ-BasselNeural", "ar-EG-ShakirNeural", "ar-SA-HamedNeural"):
+            try:
+                mp3 = asyncio.run(_edge_wav(t, v))
+                if len(mp3) > 1000:
+                    print("VOICE", v, flush=True)
+                    return mp3, "mp3"
+            except Exception as e:
+                print("edge fail", v, str(e)[:60], flush=True)
     ids=tts_tok(t, return_tensors="pt").to(dev)
     with torch.no_grad():
         w=tts(**ids).waveform[0].cpu().numpy()
     b=io.BytesIO(); sf.write(b, w, tts.config.sampling_rate, format="WAV")
-    return b.getvalue()
+    return b.getvalue(), "wav"
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -99,10 +132,13 @@ async def voice(file: UploadFile = File(...)):
     if not heard: return {"heard":"","reply":"ما كو شي واضح","audio":""}
     try: rep=think(heard)
     except Exception as e: return {"heard":heard,"reply":f"خطأ تفكير: {str(e)[:50]}","audio":""}
-    try: aud=base64.b64encode(speak(rep)).decode()
-    except Exception as e: return {"heard":heard,"reply":rep,"audio":""}
+    try:
+        blob, fmt = speak(rep)
+        aud = base64.b64encode(blob).decode()
+    except Exception as e:
+        return {"heard":heard,"reply":rep,"audio":"","fmt":"none"}
     print(f"{time.time()-t0:.1f}s | {heard[:30]} | {rep[:30]}", flush=True)
-    return {"heard":heard,"reply":rep,"audio":aud}
+    return {"heard":heard,"reply":rep,"audio":aud,"fmt":fmt}
 
 uvicorn.run(app, host="0.0.0.0", port=8000, log_level="error")
 '''
