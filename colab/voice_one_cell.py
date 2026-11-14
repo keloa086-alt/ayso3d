@@ -109,7 +109,7 @@ def speak_clone(t):
 def speak_edge(t):
     import asyncio, edge_tts
     async def go():
-        c = edge_tts.Communicate(t, "ar-IQ-RanaNeural", pitch="+55Hz", rate="+10%")
+        c = edge_tts.Communicate(t, "ar-IQ-RanaNeural", pitch="+45Hz")
         buf=b""
         async for ch in c.stream():
             if ch["type"]=="audio": buf += ch["data"]
