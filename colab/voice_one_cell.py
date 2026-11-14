@@ -192,6 +192,91 @@ AGR = ("أنت وكيل يتحكم بجوال أندرويد. يجيك أمر ا
        'أرجع JSON فقط بلا أي شرح: {"action":"click","index":N,"say":"جملة عراقية قصيرة"} '
        'أو {"action":"back","say":"..."} أو {"action":"none","say":"ما لقيت شي"}')
 
+TSYS = """أنت وكيل ذكي يتحكم بجوال أندرويد خطوة بخطوة.
+
+يجيك: هدف المستخدم، رقم الخطوة، سجل الخطوات السابقة، صورة الشاشة، عناصر الشاشة، وقائمة التطبيقات.
+
+اختر إجراء واحد فقط للخطوة الحالية.
+
+الإجراءات المتاحة:
+- {"action":"open","text":"اسم التطبيق","say":"..."} لفتح تطبيق
+- {"action":"click","index":رقم,"say":"..."} للنقر على عنصر من القائمة
+- {"action":"type","text":"النص","say":"..."} للكتابة بحقل الإدخال
+- {"action":"scroll","text":"down" أو "up","say":"..."}
+- {"action":"back","say":"..."}
+- {"action":"home","say":"..."}
+- {"action":"done","say":"ملخص المهمة"} لما تخلص
+- {"action":"none","say":"..."} لو محتاج توضيح
+
+قواعد:
+- اشتغل خطوة وحدة بس.
+- اذا شفت بالتطبيق المطلوب مفتوح، ابدأ أنقر/تكتب.
+- اذا الخطوة السابقة فشلت (شاشة ما تغيرت)، جرّب طريقة ثانية.
+- لا تعيد نفس الإجراء أكثر من مرتين.
+- الـsay بلهجة عراقية قصيرة جداً (٥ كلمات أقصى).
+- أرجع JSON فقط بلا شرح."""
+
+@app.post("/task")
+async def task(p: dict):
+    import json as _j, io as _io, base64 as _b64
+    goal = p.get("goal","")
+    step = p.get("step", 1)
+    hist = p.get("history","")
+    nodes = p.get("nodes","")
+    img64 = p.get("img","")
+    apps = p.get("apps","")
+
+    lines = [l for l in nodes.splitlines() if l.strip()][:45]
+    nodes = "\n".join(lines)
+    apps_short = ""
+    try:
+        seen = []
+        for a in apps.split(";"):
+            if "|" in a:
+                nm = a.split("|")[0].strip()
+                if nm and nm not in seen: seen.append(nm)
+        apps_short = "، ".join(seen[:40])
+    except Exception: pass
+
+    prompt = (f"الهدف: {goal}\nالخطوة: {step}\n"
+              f"الخطوات السابقة:\n{hist or 'لا شي'}\n\n"
+              f"التطبيقات المتاحة: {apps_short}\n\n"
+              f"عناصر الشاشة (رقم|نص|ينقر):\n{nodes}")
+
+    try:
+        if img64:
+            from PIL import Image
+            model, proc = get_vis()
+            from qwen_vl_utils import process_vision_info
+            im = Image.open(_io.BytesIO(_b64.b64decode(img64))).convert("RGB")
+            msgs = [{"role":"user","content":[
+                {"type":"image","image":im},
+                {"type":"text","text":TSYS + "\n\n" + prompt}]}]
+            text = proc.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+            imgs, vids = process_vision_info(msgs)
+            inp = proc(text=[text], images=imgs, videos=vids, return_tensors="pt").to(model.device)
+            with torch.no_grad():
+                out = model.generate(**inp, max_new_tokens=80, do_sample=False)
+            raw = proc.batch_decode(out[:, inp["input_ids"].shape[1]:], skip_special_tokens=True)[0].strip()
+        else:
+            m = [{"role":"system","content":TSYS},{"role":"user","content":prompt}]
+            t = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
+            ids = tok(t, return_tensors="pt").to(llm.device)
+            with torch.no_grad():
+                o = llm.generate(**ids, max_new_tokens=80, do_sample=False, pad_token_id=tok.eos_token_id)
+            raw = tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+
+        i, j = raw.find("{"), raw.rfind("}")
+        d = _j.loads(raw[i:j+1]) if i >= 0 and j > i else {"action":"none","say":raw[:50]}
+        res = {"action": d.get("action","none"),
+               "index": int(d.get("index",-1)),
+               "x": int(d.get("x",-1)), "y": int(d.get("y",-1)),
+               "text": d.get("text",""), "say": d.get("say","")}
+        print(f"TASK {step} | {goal[:26]} | {res['action']} {res['index']} {res['text'][:20]}", flush=True)
+        return res
+    except Exception as e:
+        return {"action":"none","index":-1,"x":-1,"y":-1,"text":"","say":"خطأ: "+str(e)[:40]}
+
 @app.post("/agent")
 async def agent(p: dict):
     import json as _j, io as _io, base64 as _b64
