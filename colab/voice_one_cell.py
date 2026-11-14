@@ -16,7 +16,7 @@ print("\n١) تثبيت…", flush=True)
 subprocess.run([sys.executable,"-m","pip","install","-q","-U",
     "torch","torchaudio","fastapi","uvicorn","python-multipart",
     "transformers","accelerate","soundfile","librosa",
-    "bitsandbytes","edge-tts","gTTS"], check=False)
+    "bitsandbytes","edge-tts","gTTS","qwen-vl-utils","pillow"], check=False)
 print("   ✓", flush=True)
 
 # ── ٢) ملف السيرفر ──
@@ -49,6 +49,24 @@ llm = AutoModelForCausalLM.from_pretrained(MID, quantization_config=q,
       torch_dtype=torch.float16 if dev=="cuda" else torch.float32, device_map="auto")
 llm.eval()
 print("LLM ok", flush=True)
+
+# ═══ رؤية الشاشة ═══
+_vis = {"m": None, "p": None}
+def get_vis():
+    if _vis["m"] is None:
+        from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+        mid = "Qwen/Qwen2.5-VL-3B-Instruct"
+        q2 = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                bnb_4bit_compute_dtype=torch.float16) if dev=="cuda" else None
+        _vis["m"] = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            mid, quantization_config=q2, torch_dtype=torch.float16,
+            device_map="auto" if dev=="cuda" else None).eval()
+        _vis["p"] = AutoProcessor.from_pretrained(mid)
+        print("VIS ok", flush=True)
+    return _vis["m"], _vis["p"]
+
+VSYS = ("أنت تشوف شاشة مستخدم عراقي. اوصف بجملتين أو ثلاث بلهجة عراقية "
+        "شنو موجود بالشاشة وشنو يسوي المستخدم. بلا إيموجي.")
 
 SYS = ("أنت مساعد صوتي عراقي اسمك أيصو. جاوب بجملة أو جملتين قصيرتين "
        "بلهجة عراقية بسيطة. بلا إيموجي، بلا تعداد، بلا رموز، بلا نقاط متعددة.")
@@ -167,6 +185,38 @@ def tts_check():
         b = speak_gtts("تجربة"); r["gtts"] = len(b)
     except Exception as e: r["gtts"] = str(e)[:80]
     return r
+
+@app.post("/see")
+async def see(payload: dict):
+    import io as _io, base64 as _b64
+    t0 = time.time()
+    try:
+        from PIL import Image
+        raw = _b64.b64decode(payload.get("img", ""))
+        img = Image.open(_io.BytesIO(raw)).convert("RGB")
+        # صغّر الصورة لتسريع التحليل
+        w, h = img.size
+        if max(w, h) > 1024:
+            k = 1024.0 / max(w, h)
+            img = img.resize((int(w*k), int(h*k)))
+        model, proc = get_vis()
+        from qwen_vl_utils import process_vision_info
+        msgs = [{"role":"user","content":[
+            {"type":"image","image":img},
+            {"type":"text","text":VSYS + "\nاوصف الشاشة هذي."}]}]
+        text = proc.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+        imgs, vids = process_vision_info(msgs)
+        inp = proc(text=[text], images=imgs, videos=vids, return_tensors="pt").to(model.device)
+        with torch.no_grad():
+            out = model.generate(**inp, max_new_tokens=140, do_sample=False)
+        desc = proc.batch_decode(out[:, inp["input_ids"].shape[1]:], skip_special_tokens=True)[0].strip()
+        print(f"SEE {time.time()-t0:.1f}s | {desc[:40]}", flush=True)
+        blob, fmt = b"", "none"
+        try: blob, fmt = speak(desc)
+        except Exception: pass
+        return {"desc": desc, "audio": _b64.b64encode(blob).decode() if blob else "", "fmt": fmt}
+    except Exception as e:
+        return {"desc": "ما كدرت أشوف الشاشة: " + str(e)[:60], "audio": "", "fmt": "none"}
 
 @app.post("/voice")
 async def voice(file: UploadFile = File(...)):
