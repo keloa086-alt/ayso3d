@@ -6,6 +6,8 @@ import os, sys, subprocess, time, re
 
 print("═"*56); print("  Ayso Voice — نطق نظيف · عراقي"); print("═"*56)
 
+VOICE = "ar-IQ-RanaNeural"   # للعرض فقط
+
 subprocess.run("pkill -f ayso_srv.py 2>/dev/null; pkill cloudflared 2>/dev/null", shell=True)
 time.sleep(1)
 
@@ -185,7 +187,7 @@ for k in range(180):
     if k % 15 == 14: print(f"   {2*(k+1)}s …", flush=True)
 
 if ready:
-    print("   ASR ok · LLM ok · صوت: " + VOICE, flush=True)
+    print("   ASR ok · LLM ok · السيرفر جاهز على 8000", flush=True)
 else:
     print("\n⚠️ ما جهز. آخر السجل:")
     print("\n".join(open("/content/srv.log",encoding="utf-8",errors="ignore").read().splitlines()[-20:]))
