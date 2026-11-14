@@ -150,30 +150,46 @@ threading.Thread(target=lambda: uvicorn.run(app, host="0.0.0.0", port=8000, log_
                  daemon=True).start()
 time.sleep(3)
 
-# نفق عام (cloudflared)
+# نفق عام (cloudflared) — بلا انتظار أعمى
 import re
+print("تنزيل cloudflared…")
 subprocess.run("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /content/cf && chmod +x /content/cf", shell=True)
-p = subprocess.Popen(["/content/cf", "tunnel", "--url", "http://localhost:8000", "--no-autoupdate"],
-                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+
+LOG = "/content/cf.log"
+open(LOG, "w").close()
+subprocess.Popen("nohup /content/cf tunnel --url http://localhost:8000 --no-autoupdate > " + LOG + " 2>&1 &",
+                 shell=True, preexec_fn=os.setsid)
+
+print("انتظار الرابط (حتى ٤٥ ثانية)…")
 url = None
-t0 = time.time()
-while time.time() - t0 < 60:
-    line = p.stdout.readline()
-    if not line:
-        break
-    m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line)
+for k in range(45):
+    time.sleep(1)
+    try:
+        txt = open(LOG, encoding="utf-8", errors="ignore").read()
+    except Exception:
+        continue
+    m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", txt)
     if m:
         url = m.group(0)
         break
+    if k == 15:
+        print("   … لسّه، ننتظر")
+    if k == 30:
+        print("   … بطيء، ننتظر")
 
 if url:
     print("\n" + "█" * 56)
     print("  رابط السيرفر:")
     print("  " + url)
     print("█" * 56)
-    print("\nانسخه وحطه بخانة السيرفر بالتطبيق. اترك الخلية شغّالة.")
+    print("\nانسخه وحطه بخانة السيرفر بالتطبيق.")
 else:
-    print("\n⚠️ ما طلع رابط — أعد تشغيل الخلية")
+    print("\n⚠️ ما طلع رابط. آخر ١٢ سطر من سجل cloudflared:")
+    try:
+        print("\n".join(open(LOG, encoding="utf-8", errors="ignore").read().splitlines()[-12:]))
+    except Exception as e:
+        print("  (ما كدرت أقرأ السجل:", e, ")")
 
+print("\n✓ السيرفر باقٍ شغّالاً. لا توقف الخلية.")
 while True:
     time.sleep(60)
