@@ -72,9 +72,9 @@ def think(t):
 
 import asyncio
 
-async def _edge_wav(text, voice):
+async def _edge_wav(text, voice, **kw):
     import edge_tts
-    c = edge_tts.Communicate(text, voice)
+    c = edge_tts.Communicate(text, voice, **kw)
     buf = b""
     async for ch in c.stream():
         if ch["type"] == "audio":
@@ -84,9 +84,12 @@ async def _edge_wav(text, voice):
 def speak(t):
     if TTS_MODE == "edge":
         # أصوات عربية: ar-IQ-BasselNeural (عراقي) · ar-EG-SalmaNeural · ar-SA-HamedNeural
-        for v in ("ar-IQ-BasselNeural", "ar-EG-ShakirNeural", "ar-SA-HamedNeural"):
+        # صوت أنمي عربي — عراقية أنثى + طبقة مرفوعة
+        VOICE = "ar-IQ-RanaNeural"
+        KWS = dict(pitch="+60Hz", rate="+12%")
+        for v in (VOICE,):
             try:
-                mp3 = asyncio.run(_edge_wav(t, v))
+                mp3 = asyncio.run(_edge_wav(t, v, **KWS))
                 if len(mp3) > 1000:
                     print("VOICE", v, flush=True)
                     return mp3, "mp3"
