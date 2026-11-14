@@ -194,30 +194,53 @@ AGR = ("أنت وكيل يتحكم بجوال أندرويد. يجيك أمر ا
 
 @app.post("/agent")
 async def agent(p: dict):
-    import json as _j
+    import json as _j, io as _io, base64 as _b64
     cmd = p.get("cmd", "")
     nodes = p.get("nodes", "")
-    if not nodes.strip():
-        return {"action": "none", "say": "الشاشة فاضية ما أشوف شي"}
-    # حدّد الحجم
+    img64 = p.get("img", "")
     lines = [l for l in nodes.splitlines() if l.strip()][:60]
     nodes = "\n".join(lines)
-    prompt = f"الأمر: {cmd}\n\nعناصر الشاشة:\n{nodes}"
+
+    if not nodes.strip() and not img64:
+        return {"action": "none", "say": "ما أشوف شي بالشاشة"}
+
+    prompt = f"أمر المستخدم: {cmd}\n\nعناصر الشاشة (رقم|نص|قابل للنقر):\n{nodes}"
+
     try:
-        m = [{"role":"system","content":AGR},{"role":"user","content":prompt}]
-        t = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
-        ids = tok(t, return_tensors="pt").to(llm.device)
-        with torch.no_grad():
-            o = llm.generate(**ids, max_new_tokens=80, do_sample=False,
-                             pad_token_id=tok.eos_token_id)
-        out = tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
-        i, j = out.find("{"), out.rfind("}")
-        d = _j.loads(out[i:j+1]) if i >= 0 and j > i else {"action":"none","say":out[:60]}
-        print("AGENT", cmd[:24], "→", d.get("action"), d.get("index",""), flush=True)
-        return {"action": d.get("action","none"), "index": int(d.get("index",-1)),
-                "say": d.get("say","")}
+        if img64:
+            # ── بالصورة + قائمة العناصر ──
+            from PIL import Image
+            model, proc = get_vis()
+            from qwen_vl_utils import process_vision_info
+            im = Image.open(_io.BytesIO(_b64.b64decode(img64))).convert("RGB")
+            msgs = [{"role":"user","content":[
+                {"type":"image","image":im},
+                {"type":"text","text":AGR + "\n\n" + prompt}]}]
+            text = proc.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+            imgs, vids = process_vision_info(msgs)
+            inp = proc(text=[text], images=imgs, videos=vids, return_tensors="pt").to(model.device)
+            with torch.no_grad():
+                out = model.generate(**inp, max_new_tokens=90, do_sample=False)
+            raw = proc.batch_decode(out[:, inp["input_ids"].shape[1]:], skip_special_tokens=True)[0].strip()
+        else:
+            m = [{"role":"system","content":AGR},{"role":"user","content":prompt}]
+            t = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
+            ids = tok(t, return_tensors="pt").to(llm.device)
+            with torch.no_grad():
+                o = llm.generate(**ids, max_new_tokens=80, do_sample=False,
+                                 pad_token_id=tok.eos_token_id)
+            raw = tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+
+        i, j = raw.find("{"), raw.rfind("}")
+        d = _j.loads(raw[i:j+1]) if i >= 0 and j > i else {"action":"none","say":raw[:60]}
+        res = {"action": d.get("action","none"),
+               "index": int(d.get("index",-1)),
+               "x": int(d.get("x",-1)), "y": int(d.get("y",-1)),
+               "say": d.get("say","")}
+        print("AGENT", cmd[:22], "→", res["action"], res["index"], "| img" if img64 else "| نص", flush=True)
+        return res
     except Exception as e:
-        return {"action": "none", "say": "ما كدرت أقرر: " + str(e)[:40]}
+        return {"action":"none","index":-1,"x":-1,"y":-1,"say":"ما كدرت أقرر: "+str(e)[:40]}
 
 @app.post("/see")
 async def see(payload: dict):
