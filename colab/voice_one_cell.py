@@ -1,49 +1,43 @@
 # ═══════════════════════════════════════════════════════════════
-#  Ayso Voice — صوت أنمي عربي بالتقليد (XTTS-v2)
+#  Ayso Voice — نطق نظيف · صوت عراقي أنثوي (Edge-TTS)
 #  Runtime → T4 GPU   |   أوقف أي خلية شغّالة قبل التشغيل (⏹)
 # ═══════════════════════════════════════════════════════════════
-import os, sys, subprocess, time, re, urllib.request
+import os, sys, subprocess, time, re
 
-print("═"*56); print("  Ayso Voice — صوت أنمي عربي"); print("═"*56)
+print("═"*56); print("  Ayso Voice — نطق نظيف · عراقي"); print("═"*56)
 
 subprocess.run("pkill -f ayso_srv.py 2>/dev/null; pkill cloudflared 2>/dev/null", shell=True)
 time.sleep(1)
 
 # ── ١) المكتبات ──
-print("\n١) تثبيت (٣–٥ دقايق أول مرة)…", flush=True)
+print("\n١) تثبيت…", flush=True)
 subprocess.run([sys.executable,"-m","pip","install","-q","-U",
     "torch","torchaudio","fastapi","uvicorn","python-multipart",
-    "transformers==4.57.1","accelerate","soundfile","librosa",
-    "bitsandbytes","coqui-tts","edge-tts","python-multipart"], check=False)
+    "transformers","accelerate","soundfile","librosa",
+    "bitsandbytes","edge-tts"], check=False)
 print("   ✓", flush=True)
 
-# ── ٢) عيّنة الصوت ──
-print("\n٢) تنزيل عيّنة الصوت…", flush=True)
-SPK_MP3 = "/content/spk.mp3"
-SPK_WAV = "/content/spk.wav"
-urllib.request.urlretrieve(
-    "https://raw.githubusercontent.com/keloa086-alt/ayso3d/main/assets/speaker.mp3", SPK_MP3)
-subprocess.run(f"ffmpeg -y -v error -i {SPK_MP3} -ar 24000 -ac 1 {SPK_WAV}", shell=True)
-print(f"   ✓ {os.path.getsize(SPK_WAV)//1024} KB", flush=True)
-
-# ── ٣) ملف السيرفر ──
+# ── ٢) ملف السيرفر ──
 SERVER = r'''
-import io, os, time, base64, tempfile, re
-os.environ["COQUI_TOS_AGREED"] = "1"
+import io, os, time, base64, tempfile, asyncio
 import numpy as np, torch, soundfile as sf
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import edge_tts
 
-SPK = "/content/spk.wav"
 dev = "cuda" if torch.cuda.is_available() else "cpu"
 print("DEV", dev, flush=True)
 
-# ── كلام → نص ──
+# ═══ إعدادات الصوت — عدّل هذي بس ═══
+VOICE = "ar-IQ-RanaNeural"     # عراقية أنثى
+PITCH = "+45Hz"                # طبقة أعلى = إحساس أنمي
+RATE  = "+8%"                  # سرعة
+# ═══════════════════════════════════
+
 asr = pipeline("automatic-speech-recognition", model="openai/whisper-small",
                device=0 if dev=="cuda" else -1,
                generate_kwargs={"language":"ar","task":"transcribe"})
 print("ASR ok", flush=True)
 
-# ── تفكير ──
 MID = "Qwen/Qwen2.5-1.5B-Instruct"
 tok = AutoTokenizer.from_pretrained(MID)
 q = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
@@ -53,76 +47,51 @@ llm = AutoModelForCausalLM.from_pretrained(MID, quantization_config=q,
 llm.eval()
 print("LLM ok", flush=True)
 
-# ── صوت التقليد (XTTS-v2) ──
-CLONE = False
-xtts = None
-try:
-    from TTS.api import TTS
-    xtts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(dev)
-    CLONE = True
-    print("XTTS ok — تقليد صوت", flush=True)
-except Exception as e:
-    print("XTTS FAIL:", str(e)[:200], flush=True)
-
 SYS = ("أنت مساعد صوتي عراقي اسمك أيصو. جاوب بجملة أو جملتين قصيرتين "
-       "بلهجة عراقية بسيطة. بلا إيموجي، بلا تعداد، بلا رموز.")
+       "بلهجة عراقية بسيطة. بلا إيموجي، بلا تعداد، بلا رموز، بلا نقاط متعددة.")
 
 def think(t):
-    m=[{"role":"system","content":SYS},{"role":"user","content":t}]
-    p=tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
-    ids=tok(p, return_tensors="pt").to(llm.device)
+    m = [{"role":"system","content":SYS},{"role":"user","content":t}]
+    p = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
+    ids = tok(p, return_tensors="pt").to(llm.device)
     with torch.no_grad():
-        o=llm.generate(**ids, max_new_tokens=90, do_sample=True, temperature=0.7,
-                       top_p=0.9, repetition_penalty=1.1, pad_token_id=tok.eos_token_id)
-    return tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+        o = llm.generate(**ids, max_new_tokens=90, do_sample=True, temperature=0.75,
+                         top_p=0.9, repetition_penalty=1.1,
+                         pad_token_id=tok.eos_token_id)
+    out = tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+    # نظّف النص قبل النطق
+    import re as _re
+    out = _re.sub(r"[*_#\[\]()<>|~`]", "", out)
+    out = _re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", "", out)
+    out = _re.sub(r"\s+", " ", out).strip()
+    return out
 
-def split_sent(t, maxn=180):
-    parts = re.split(r'(?<=[.!؟،])\s+', t)
-    out, cur = [], ""
-    for p in parts:
-        if len(cur)+len(p) < maxn: cur = (cur+" "+p).strip()
-        else:
-            if cur: out.append(cur)
-            cur = p
-    if cur: out.append(cur)
-    return out or [t]
-
-def speak_clone(t):
-    """XTTS-v2 — يقول النص بصوت العيّنة"""
-    chunks = []
-    for seg in split_sent(t):
-        if not seg.strip(): continue
-        w = xtts.tts(text=seg, language="ar", speaker_wav=SPK, speed=1.12,
-                     enable_text_splitting=False)
-        chunks.append(np.asarray(w, dtype=np.float32))
-    if not chunks: raise RuntimeError("no audio")
-    w = np.concatenate(chunks)
-    # رفع طفيف للطبقة — إحساس أنمي
-    try:
-        import librosa
-        w = librosa.effects.pitch_shift(w, sr=24000, n_steps=1.0)
-    except Exception:
-        pass
-    b = io.BytesIO(); sf.write(b, w, 24000, format="WAV")
-    return b.getvalue()
-
-def speak_edge(t):
-    import asyncio, edge_tts
-    async def go():
-        c = edge_tts.Communicate(t, "ar-IQ-RanaNeural", pitch="+45Hz")
-        buf=b""
-        async for ch in c.stream():
-            if ch["type"]=="audio": buf += ch["data"]
-        return buf
-    return asyncio.run(go())
+async def _tts(text):
+    # pitch و rate معاً يفشلان — نستخدم pitch فقط
+    for kw in (dict(pitch=PITCH), dict(),):
+        try:
+            c = edge_tts.Communicate(text, VOICE, **kw)
+            buf = b""
+            async for ch in c.stream():
+                if ch["type"] == "audio":
+                    buf += ch["data"]
+            if len(buf) > 800:
+                return buf
+        except Exception as e:
+            print("tts retry:", str(e)[:60], flush=True)
+    raise RuntimeError("tts empty")
 
 def speak(t):
-    if CLONE:
-        try:
-            return speak_clone(t), "wav"
-        except Exception as e:
-            print("clone fail:", str(e)[:120], flush=True)
-    return speak_edge(t), "mp3"
+    import re as _re
+    # قسّم لجمل — النطق يصير أنظف على الجمل القصيرة
+    parts = [p.strip() for p in _re.split(r"(?<=[.!؟])\s+", t) if p.strip()]
+    if not parts: parts = [t]
+    out = b""
+    for s in parts:
+        try: out += asyncio.run(_tts(s))
+        except Exception: pass
+    if not out: raise RuntimeError("no audio")
+    return out, "mp3"
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -131,7 +100,7 @@ app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/")
-def root(): return {"ok":True,"ready":True,"clone":CLONE}
+def root(): return {"ok":True,"ready":True,"voice":VOICE}
 
 @app.post("/voice")
 async def voice(file: UploadFile = File(...)):
@@ -143,7 +112,7 @@ async def voice(file: UploadFile = File(...)):
         f.write(raw); path = f.name
     try:
         data, sr = sf.read(path, dtype="float32")
-    except Exception as e:
+    except Exception:
         try: os.unlink(path)
         except: pass
         return {"heard":"","reply":"ملف غير مقروء","audio":"","fmt":"none"}
@@ -165,42 +134,40 @@ async def voice(file: UploadFile = File(...)):
         return {"heard":heard,"reply":f"خطأ تفكير: {str(e)[:40]}","audio":"","fmt":"none"}
     try:
         blob, fmt = speak(rep); aud = base64.b64encode(blob).decode()
-    except Exception as e:
+    except Exception:
         return {"heard":heard,"reply":rep,"audio":"","fmt":"none"}
-    print(f"{time.time()-t0:.1f}s | {heard[:28]} | {rep[:28]}", flush=True)
+    print(f"{time.time()-t0:.1f}s | {heard[:26]} | {rep[:26]}", flush=True)
     return {"heard":heard,"reply":rep,"audio":aud,"fmt":fmt}
 
 uvicorn.run(app, host="0.0.0.0", port=8000, log_level="error")
 '''
 open("/content/ayso_srv.py","w").write(SERVER)
-print("\n٣) ملف السيرفر ✓", flush=True)
+print("\n٢) ملف السيرفر ✓", flush=True)
 
-# ── ٤) تشغيل ──
-print("\n٤) تشغيل السيرفر…", flush=True)
+# ── ٣) تشغيل ──
+print("\n٣) تشغيل السيرفر…", flush=True)
 open("/content/srv.log","w").close()
 subprocess.Popen("nohup python -u /content/ayso_srv.py > /content/srv.log 2>&1 &",
                  shell=True, preexec_fn=os.setsid)
 
 ready = False
-for k in range(240):
+for k in range(180):
     time.sleep(2)
     try: log = open("/content/srv.log", encoding="utf-8", errors="ignore").read()
     except Exception: log = ""
-    if "XTTS ok" in log or "XTTS FAIL" in log: ready = True; break
+    if "LLM ok" in log: ready = True; break
     if "Traceback" in log:
         print("\n⚠️ خطأ:\n" + "\n".join(log.splitlines()[-20:])); break
-    if k % 20 == 19: print(f"   {2*(k+1)}s …", flush=True)
+    if k % 15 == 14: print(f"   {2*(k+1)}s …", flush=True)
 
 if ready:
-    for line in open("/content/srv.log", encoding="utf-8", errors="ignore"):
-        if any(x in line for x in ("ASR ok","LLM ok","XTTS","clone","DEV")):
-            print("   " + line.rstrip(), flush=True)
+    print("   ASR ok · LLM ok · صوت: " + VOICE, flush=True)
 else:
     print("\n⚠️ ما جهز. آخر السجل:")
     print("\n".join(open("/content/srv.log",encoding="utf-8",errors="ignore").read().splitlines()[-20:]))
 
-# ── ٥) النفق ──
-print("\n٥) فتح النفق…", flush=True)
+# ── ٤) النفق ──
+print("\n٤) فتح النفق…", flush=True)
 if not os.path.exists("/content/cf"):
     subprocess.run("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /content/cf && chmod +x /content/cf", shell=True)
 open("/content/cf.log","w").close()
