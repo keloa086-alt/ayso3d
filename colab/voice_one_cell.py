@@ -186,6 +186,39 @@ def tts_check():
     except Exception as e: r["gtts"] = str(e)[:80]
     return r
 
+AGR = ("أنت وكيل يتحكم بجوال أندرويد. يجيك أمر المستخدم وقائمة عناصر الشاشة، "
+       "كل سطر بالشكل: رقم|نص|هل_ينقر(1/0).\n"
+       "اختر العنصر اللي يطابق الأمر.\n"
+       'أرجع JSON فقط بلا أي شرح: {"action":"click","index":N,"say":"جملة عراقية قصيرة"} '
+       'أو {"action":"back","say":"..."} أو {"action":"none","say":"ما لقيت شي"}')
+
+@app.post("/agent")
+async def agent(p: dict):
+    import json as _j
+    cmd = p.get("cmd", "")
+    nodes = p.get("nodes", "")
+    if not nodes.strip():
+        return {"action": "none", "say": "الشاشة فاضية ما أشوف شي"}
+    # حدّد الحجم
+    lines = [l for l in nodes.splitlines() if l.strip()][:60]
+    nodes = "\n".join(lines)
+    prompt = f"الأمر: {cmd}\n\nعناصر الشاشة:\n{nodes}"
+    try:
+        m = [{"role":"system","content":AGR},{"role":"user","content":prompt}]
+        t = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
+        ids = tok(t, return_tensors="pt").to(llm.device)
+        with torch.no_grad():
+            o = llm.generate(**ids, max_new_tokens=80, do_sample=False,
+                             pad_token_id=tok.eos_token_id)
+        out = tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+        i, j = out.find("{"), out.rfind("}")
+        d = _j.loads(out[i:j+1]) if i >= 0 and j > i else {"action":"none","say":out[:60]}
+        print("AGENT", cmd[:24], "→", d.get("action"), d.get("index",""), flush=True)
+        return {"action": d.get("action","none"), "index": int(d.get("index",-1)),
+                "say": d.get("say","")}
+    except Exception as e:
+        return {"action": "none", "say": "ما كدرت أقرر: " + str(e)[:40]}
+
 @app.post("/see")
 async def see(payload: dict):
     import io as _io, base64 as _b64
