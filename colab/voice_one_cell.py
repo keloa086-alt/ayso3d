@@ -216,6 +216,51 @@ TSYS = """أنت وكيل ذكي يتحكم بجوال أندرويد خطوة �
 - الـsay بلهجة عراقية قصيرة جداً (٥ كلمات أقصى).
 - أرجع JSON فقط بلا شرح."""
 
+WSYS = """أنت تشوف شاشة جوال مستخدم عراقي، وتشتغل بمراقبة مستمرة.
+
+مهمتك: إذا صار شي مهم يستاهل التنبيه، قول جملة وحدة قصيرة بلهجة عراقية.
+إذا الشاشة عادية أو مكررة، أرجع نص فارغ.
+
+قواعد صارمة:
+- جملة وحدة فقط، ٨ كلمات أقصى.
+- لا تعيد شي قلته قبل (شوف "قبل گلت").
+- لا توصف تفاصيل تافهة (وقت، بطارية، شبكة).
+- ركّز على: تطبيق جديد انفتح، رسالة وصلت، خطأ ظهر، زر مهم.
+- إذا ما شي جديد يستاهل، أرجع "" بس.
+
+أرجع JSON فقط: {"say":"الجملة"} أو {"say":""}"""
+
+@app.post("/watch")
+async def watch(p: dict):
+    import json as _j, io as _io, base64 as _b64
+    img64 = p.get("img", "")
+    recent = p.get("recent", "")
+    if not img64:
+        return {"say": ""}
+    try:
+        from PIL import Image
+        model, proc = get_vis()
+        from qwen_vl_utils import process_vision_info
+        im = Image.open(_io.BytesIO(_b64.b64decode(img64))).convert("RGB")
+        prompt = WSYS + ("\n\nقبل گلت:\n" + recent if recent else "")
+        msgs = [{"role":"user","content":[
+            {"type":"image","image":im},
+            {"type":"text","text":prompt}]}]
+        text = proc.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+        imgs, vids = process_vision_info(msgs)
+        inp = proc(text=[text], images=imgs, videos=vids, return_tensors="pt").to(model.device)
+        with torch.no_grad():
+            out = model.generate(**inp, max_new_tokens=40, do_sample=False)
+        raw = proc.batch_decode(out[:, inp["input_ids"].shape[1]:], skip_special_tokens=True)[0].strip()
+        i, j = raw.find("{"), raw.rfind("}")
+        d = _j.loads(raw[i:j+1]) if i >= 0 and j > i else {"say": ""}
+        say = str(d.get("say", "")).strip()
+        if say:
+            print("WATCH |", say[:50], flush=True)
+        return {"say": say}
+    except Exception as e:
+        return {"say": ""}
+
 @app.post("/task")
 async def task(p: dict):
     import json as _j, io as _io, base64 as _b64
