@@ -16,7 +16,7 @@ print("\n١) تثبيت…", flush=True)
 subprocess.run([sys.executable,"-m","pip","install","-q","-U",
     "torch","torchaudio","fastapi","uvicorn","python-multipart",
     "transformers","accelerate","soundfile","librosa",
-    "bitsandbytes","edge-tts"], check=False)
+    "bitsandbytes","edge-tts","gTTS"], check=False)
 print("   ✓", flush=True)
 
 # ── ٢) ملف السيرفر ──
@@ -104,19 +104,38 @@ async def _tts(text):
             print("tts retry:", str(e)[:60], flush=True)
     raise RuntimeError("tts empty")
 
+TTS_ERR = []
+
+def speak_gtts(text):
+    from gtts import gTTS
+    b = io.BytesIO()
+    gTTS(text, lang="ar", slow=False).write_to_fp(b)
+    return b.getvalue()
+
 def speak(t):
     import re as _re
+    TTS_ERR.clear()
     if GEMINI_KEY:
         try: return speak_gemini(t), "wav"
-        except Exception as e: print("gemini fail:", str(e)[:70], flush=True)
+        except Exception as e:
+            TTS_ERR.append("gemini:" + str(e)[:50]); print("gemini fail:", str(e)[:70], flush=True)
     # قسّم لجمل — النطق يصير أنظف على الجمل القصيرة
     parts = [p.strip() for p in _re.split(r"(?<=[.!؟])\s+", t) if p.strip()]
     if not parts: parts = [t]
     out = b""
     for s in parts:
         try: out += asyncio.run(_tts(s))
-        except Exception: pass
-    if not out: raise RuntimeError("no audio")
+        except Exception as e:
+            TTS_ERR.append("edge:" + str(e)[:50])
+    if not out:
+        # بديل: Google Translate
+        try:
+            out = speak_gtts(t)
+            print("TTS fallback: gTTS", flush=True)
+            return out, "mp3"
+        except Exception as e:
+            TTS_ERR.append("gtts:" + str(e)[:50])
+            raise RuntimeError("no audio")
     return out, "mp3"
 
 from fastapi import FastAPI, UploadFile, File
@@ -127,6 +146,27 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 @app.get("/")
 def root(): return {"ok":True,"ready":True,"voice":VOICE}
+
+from fastapi.responses import Response
+
+@app.get("/speak")
+def speak_test(t: str = "هلا بيك، الصوت شغال"):
+    try:
+        blob, fmt = speak(t)
+        return Response(blob, media_type="audio/mp3" if fmt=="mp3" else "audio/wav")
+    except Exception:
+        return Response(" | ".join(TTS_ERR), media_type="text/plain")
+
+@app.get("/ttscheck")
+def tts_check():
+    r = {"gemini": bool(GEMINI_KEY), "edge": None, "gtts": None}
+    try:
+        b = asyncio.run(_tts("تجربة")); r["edge"] = len(b)
+    except Exception as e: r["edge"] = str(e)[:80]
+    try:
+        b = speak_gtts("تجربة"); r["gtts"] = len(b)
+    except Exception as e: r["gtts"] = str(e)[:80]
+    return r
 
 @app.post("/voice")
 async def voice(file: UploadFile = File(...)):
@@ -160,8 +200,9 @@ async def voice(file: UploadFile = File(...)):
         return {"heard":heard,"reply":f"خطأ تفكير: {str(e)[:40]}","audio":"","fmt":"none"}
     try:
         blob, fmt = speak(rep); aud = base64.b64encode(blob).decode()
-    except Exception:
-        return {"heard":heard,"reply":rep,"audio":"","fmt":"none"}
+    except Exception as e:
+        print("TTS ALL FAIL:", " | ".join(TTS_ERR), flush=True)
+        return {"heard":heard,"reply":rep,"audio":"","fmt":"none","tts_err":" | ".join(TTS_ERR)}
     print(f"{time.time()-t0:.1f}s | {heard[:26]} | {rep[:26]}", flush=True)
     return {"heard":heard,"reply":rep,"audio":aud,"fmt":fmt}
 
