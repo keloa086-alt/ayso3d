@@ -150,31 +150,30 @@ threading.Thread(target=lambda: uvicorn.run(app, host="0.0.0.0", port=8000, log_
                  daemon=True).start()
 time.sleep(3)
 
-# نفق عام
-subprocess.run([sys.executable, "-m", "pip", "install", "-q", "pyngrok"], check=False)
-try:
-    from pyngrok import ngrok
-    ngrok.set_auth_token(os.environ.get("NGROK_TOKEN", ""))
-    tun = ngrok.connect(8000)
-    print("\n" + "═" * 56)
-    print("  رابط السيرفر:")
-    print("  " + str(tun.public_url))
-    print("═" * 56)
-except Exception as e:
-    print("\n⚠️ pyngrok يحتاج توكن مجاني من ngrok.com")
-    print("   خطأ:", str(e)[:120])
-    print("\n   البديل: استخدم cloudflared")
-    subprocess.run("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /content/cf && chmod +x /content/cf", shell=True)
-    p = subprocess.Popen("/content/cf tunnel --url http://localhost:8000", shell=True,
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    for line in p.stdout:
-        if "trycloudflare.com" in line:
-            print("\n" + "═" * 56)
-            print("  رابط السيرفر:")
-            print("  " + line.strip().split()[-1])
-            print("═" * 56)
-            break
+# نفق عام (cloudflared)
+import re
+subprocess.run("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /content/cf && chmod +x /content/cf", shell=True)
+p = subprocess.Popen(["/content/cf", "tunnel", "--url", "http://localhost:8000", "--no-autoupdate"],
+                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+url = None
+t0 = time.time()
+while time.time() - t0 < 60:
+    line = p.stdout.readline()
+    if not line:
+        break
+    m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line)
+    if m:
+        url = m.group(0)
+        break
 
-print("\n✓ السيرفر شغّال. اتركه مفتوح.")
+if url:
+    print("\n" + "█" * 56)
+    print("  رابط السيرفر:")
+    print("  " + url)
+    print("█" * 56)
+    print("\nانسخه وحطه بخانة السيرفر بالتطبيق. اترك الخلية شغّالة.")
+else:
+    print("\n⚠️ ما طلع رابط — أعد تشغيل الخلية")
+
 while True:
     time.sleep(60)
