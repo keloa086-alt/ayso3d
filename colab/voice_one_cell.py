@@ -36,9 +36,23 @@ RATE  = "-5%"                  # أبطأ قليلاً = أوضح
 GEMINI_KEY = os.environ.get("GEMINI_KEY","")  # اختياري: مفتاح Gemini
 # ═══════════════════════════════════
 
-asr = pipeline("automatic-speech-recognition", model="openai/whisper-small",
-               device=0 if dev=="cuda" else -1,
-               generate_kwargs={"language":"ar","task":"transcribe"})
+# ═══ السمع: whisper-large-v3-turbo (أدق بمراحل من small) ═══
+ASR_MODEL = "openai/whisper-large-v3-turbo"
+try:
+    asr = pipeline("automatic-speech-recognition", model=ASR_MODEL,
+                   device=0 if dev=="cuda" else -1,
+                   torch_dtype=torch.float16 if dev=="cuda" else torch.float32,
+                   chunk_length_s=30, batch_size=8)
+except Exception as e:
+    print("large-v3-turbo فشل، نرجع small:", str(e)[:60], flush=True)
+    asr = pipeline("automatic-speech-recognition", model="openai/whisper-small",
+                   device=0 if dev=="cuda" else -1)
+
+# توجيه: يعرّف Whisper الكلمات العراقية وأسماء التطبيقات
+IRAQ_PROMPT = ("المتحدث عراقي. كلمات شائعة: شنو، شلون، هسه، هواي، اكو، ماكو، "
+               "هيج، چان، اريد، اكدر، ادخل، فتح، دوس، شوف، هات، روح، "
+               "واتساب، تلغرام، يوتيوب، انستغرام، فيسبوك، تيك توك، كروم، المتجر، "
+               "الاعدادات، الخريطة، جيميل، الكاميرا، الرسائل، الهاتف، المعرض.")
 print("ASR ok", flush=True)
 
 MID = "Qwen/Qwen2.5-1.5B-Instruct"
@@ -73,6 +87,7 @@ import json as _json
 MEM_PATH = "/content/ayso_memory.json"
 HIST = []          # [(user, assistant)]
 APPS = ""          # قائمة تطبيقات المستخدم
+APPS_NAMES = ""    # أسماء التطبيقات فقط (للتوجيه)
 FACTS = {}         # {"الاسم":"علي", ...}
 
 def mem_load():
@@ -487,7 +502,14 @@ async def voice(file: UploadFile = File(...), request: Request = None):
         h = request.headers.get("x-apps-b64", "") if request else ""
         if h:
             global APPS
+            global APPS_NAMES
             APPS = _b.b64decode(h).decode("utf-8", "ignore")
+            _names = []
+            for _a in APPS.split(";"):
+                if "|" in _a:
+                    _n = _a.split("|")[0].strip()
+                    if _n and _n not in _names: _names.append(_n)
+            APPS_NAMES = "، ".join(_names[:30])
     except Exception:
         pass
     t0 = time.time()
@@ -510,7 +532,11 @@ async def voice(file: UploadFile = File(...), request: Request = None):
     if float(np.abs(data).max()) < 0.005:
         return {"heard":"","reply":"ما سمعت صوت — قرب المايك","audio":"","fmt":"none"}
     try:
-        heard = asr({"raw":data.astype(np.float32),"sampling_rate":16000})["text"].strip()
+        heard = asr({"raw":data.astype(np.float32),"sampling_rate":16000},
+                    generate_kwargs={"language": "ar", "task": "transcribe",
+                                     "initial_prompt": IRAQ_PROMPT +                                          (" تطبيقاته: " + APPS_NAMES if APPS_NAMES else ""),
+                                     "temperature": 0.0,
+                                     "condition_on_prev_tokens": False})["text"].strip()
     except Exception as e:
         return {"heard":"","reply":f"خطأ سمع: {str(e)[:40]}","audio":"","fmt":"none"}
     if not heard:
