@@ -68,11 +68,72 @@ def get_vis():
 VSYS = ("أنت تشوف شاشة مستخدم عراقي. اوصف بجملتين أو ثلاث بلهجة عراقية "
         "شنو موجود بالشاشة وشنو يسوي المستخدم. بلا إيموجي.")
 
+# ═══ الذاكرة ═══
+import json as _json
+MEM_PATH = "/content/ayso_memory.json"
+HIST = []          # [(user, assistant)]
+APPS = ""          # قائمة تطبيقات المستخدم
+FACTS = {}         # {"الاسم":"علي", ...}
+
+def mem_load():
+    global FACTS
+    try:
+        with open(MEM_PATH, encoding="utf-8") as f:
+            FACTS = _json.load(f)
+    except Exception:
+        FACTS = {}
+mem_load()
+
+def mem_save():
+    try:
+        with open(MEM_PATH, "w", encoding="utf-8") as f:
+            _json.dump(FACTS, f, ensure_ascii=False, indent=1)
+    except Exception:
+        pass
+
+import re as _re
+def extract_facts(txt):
+    got = []
+    pats = [
+        (r"اسمي\s+([^\s،.]+)", "الاسم"),
+        (r"انا\s+([^\s،.]+)\s*$", "الاسم"),
+        (r"(?:احب|أحب|يعجبني)\s+([^،.]+)", "يحب"),
+        (r"اسكن\s+(?:في|ب)\s*([^،.]+)", "يسكن"),
+        (r"عمري\s+(\d+)", "العمر"),
+        (r"اشتغل\s+([^،.]+)", "العمل"),
+    ]
+    for pat, key in pats:
+        m = _re.search(pat, txt)
+        if m:
+            v = m.group(1).strip()
+            if 1 < len(v) < 40:
+                FACTS[key] = v
+                got.append(key)
+    if got: mem_save()
+    return got
+
+def mem_block():
+    if not FACTS and not APPS: return ""
+    lines = "\n".join(f"- {k}: {v}" for k, v in FACTS.items()) if FACTS else "(لا شي بعد)"
+    if APPS:
+        names = []
+        for a in APPS.split(";"):
+            if "|" in a:
+                nm = a.split("|")[0].strip()
+                if nm and nm not in names: names.append(nm)
+        if names:
+            lines += "\nالتطبيقات المثبتة بجواله: " + "، ".join(names[:35])
+    return f"\n\nمعلومات عن المستخدم (تذكرها):\n{lines}\n"
+
 SYS = ("أنت مساعد صوتي عراقي اسمك أيصو. جاوب بجملة أو جملتين قصيرتين "
        "بلهجة عراقية بسيطة. بلا إيموجي، بلا تعداد، بلا رموز، بلا نقاط متعددة.")
 
 def think(t):
-    m = [{"role":"system","content":SYS},{"role":"user","content":t}]
+    m = [{"role":"system","content": SYS + mem_block()}]
+    for u, a in HIST[-8:]:
+        m.append({"role":"user","content":u})
+        m.append({"role":"assistant","content":a})
+    m.append({"role":"user","content":t})
     p = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
     ids = tok(p, return_tensors="pt").to(llm.device)
     with torch.no_grad():
@@ -156,7 +217,7 @@ def speak(t):
             raise RuntimeError("no audio")
     return out, "mp3"
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 app = FastAPI()
@@ -229,6 +290,21 @@ WSYS = """أنت تشوف شاشة جوال مستخدم عراقي، وتشتغ
 - إذا ما شي جديد يستاهل، أرجع "" بس.
 
 أرجع JSON فقط: {"say":"الجملة"} أو {"say":""}"""
+
+@app.get("/memory")
+def get_memory():
+    return {"facts": FACTS, "turns": len(HIST)}
+
+@app.post("/memory")
+def set_memory(p: dict):
+    FACTS.update({k: str(v) for k, v in p.items() if v})
+    mem_save()
+    return {"ok": True, "facts": FACTS}
+
+@app.post("/reset")
+def reset():
+    HIST.clear()
+    return {"ok": True}
 
 @app.post("/watch")
 async def watch(p: dict):
@@ -405,7 +481,15 @@ async def see(payload: dict):
         return {"desc": "ما كدرت أشوف الشاشة: " + str(e)[:60], "audio": "", "fmt": "none"}
 
 @app.post("/voice")
-async def voice(file: UploadFile = File(...)):
+async def voice(file: UploadFile = File(...), request: Request = None):
+    try:
+        import base64 as _b
+        h = request.headers.get("x-apps-b64", "") if request else ""
+        if h:
+            global APPS
+            APPS = _b.b64decode(h).decode("utf-8", "ignore")
+    except Exception:
+        pass
     t0 = time.time()
     raw = await file.read()
     if len(raw) < 2000:
@@ -431,9 +515,12 @@ async def voice(file: UploadFile = File(...)):
         return {"heard":"","reply":f"خطأ سمع: {str(e)[:40]}","audio":"","fmt":"none"}
     if not heard:
         return {"heard":"","reply":"ما كو شي واضح","audio":"","fmt":"none"}
+    extract_facts(heard)
     try: rep = think(heard)
     except Exception as e:
         return {"heard":heard,"reply":f"خطأ تفكير: {str(e)[:40]}","audio":"","fmt":"none"}
+    HIST.append((heard, rep))
+    if len(HIST) > 12: HIST.pop(0)
     try:
         blob, fmt = speak(rep); aud = base64.b64encode(blob).decode()
     except Exception as e:
