@@ -29,8 +29,9 @@ print("DEV", dev, flush=True)
 
 # ═══ إعدادات الصوت — عدّل هذي بس ═══
 VOICE = "ar-IQ-RanaNeural"     # عراقية أنثى
-PITCH = "+45Hz"                # طبقة أعلى = إحساس أنمي
-RATE  = "+8%"                  # سرعة
+PITCH = ""                     # بلا تعديل = أوضح نطق
+RATE  = "-5%"                  # أبطأ قليلاً = أوضح
+GEMINI_KEY = os.environ.get("GEMINI_KEY","")  # اختياري: مفتاح Gemini
 # ═══════════════════════════════════
 
 asr = pipeline("automatic-speech-recognition", model="openai/whisper-small",
@@ -66,9 +67,29 @@ def think(t):
     out = _re.sub(r"\s+", " ", out).strip()
     return out
 
+def speak_gemini(text):
+    """Gemini TTS — أوضح صوت ممكن (يحتاج مفتاح مجاني)"""
+    import urllib.request as _u, json as _j
+    body = _j.dumps({"contents":[{"parts":[{"text":text}]}],
+        "generationConfig":{"responseModalities":["AUDIO"],
+        "speechConfig":{"voiceConfig":{"prebuiltVoiceConfig":{"voiceName":"Kore"}}}}}).encode()
+    req = _u.Request(
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        "gemini-2.5-flash-preview-tts:generateContent?key=" + GEMINI_KEY,
+        data=body, headers={"Content-Type":"application/json"})
+    d = _j.loads(_u.urlopen(req, timeout=60).read())
+    pcm = base64.b64decode(d["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+    # PCM 16-bit 24k mono → WAV
+    import wave
+    b = io.BytesIO()
+    with wave.open(b, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
+        w.writeframes(pcm)
+    return b.getvalue()
+
 async def _tts(text):
     # pitch و rate معاً يفشلان — نستخدم pitch فقط
-    for kw in (dict(pitch=PITCH), dict(),):
+    for kw in ([dict(pitch=PITCH, rate=RATE)] if PITCH else [dict(rate=RATE)], [{}]):
         try:
             c = edge_tts.Communicate(text, VOICE, **kw)
             buf = b""
@@ -83,6 +104,9 @@ async def _tts(text):
 
 def speak(t):
     import re as _re
+    if GEMINI_KEY:
+        try: return speak_gemini(t), "wav"
+        except Exception as e: print("gemini fail:", str(e)[:70], flush=True)
     # قسّم لجمل — النطق يصير أنظف على الجمل القصيرة
     parts = [p.strip() for p in _re.split(r"(?<=[.!؟])\s+", t) if p.strip()]
     if not parts: parts = [t]
