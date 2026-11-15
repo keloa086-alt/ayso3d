@@ -496,6 +496,44 @@ async def see(payload: dict):
     except Exception as e:
         return {"desc": "ما كدرت أشوف الشاشة: " + str(e)[:60], "audio": "", "fmt": "none"}
 
+@app.post("/chat")
+async def chat(p: dict):
+    """يستقبل نصاً جاهزاً (من SpeechRecognizer بالجوال) — أسرع وأدق"""
+    t0 = time.time()
+    global APPS, APPS_NAMES
+    try:
+        import base64 as _b
+        if p.get("apps"):
+            APPS = str(p.get("apps"))[:4000]
+            names = []
+            for a in APPS.split(";"):
+                if "|" in a:
+                    n = a.split("|")[0].strip()
+                    if n and n not in names: names.append(n)
+            APPS_NAMES = "، ".join(names[:30])
+    except Exception:
+        pass
+
+    heard = str(p.get("text", "")).strip()
+    if not heard:
+        return {"heard": "", "reply": "ما سمعت شي", "audio": "", "fmt": "none"}
+
+    extract_facts(heard)
+    try:
+        rep = think(heard)
+    except Exception as e:
+        return {"heard": heard, "reply": "خطأ تفكير: " + str(e)[:40], "audio": "", "fmt": "none"}
+    HIST.append((heard, rep))
+    if len(HIST) > 12: HIST.pop(0)
+
+    try:
+        blob, fmt = speak(rep); aud = base64.b64encode(blob).decode()
+    except Exception:
+        return {"heard": heard, "reply": rep, "audio": "", "fmt": "none"}
+
+    print(f"CHAT {time.time()-t0:.1f}s | {heard[:26]} | {rep[:26]}", flush=True)
+    return {"heard": heard, "reply": rep, "audio": aud, "fmt": fmt}
+
 @app.post("/voice")
 async def voice(file: UploadFile = File(...), request: Request = None):
     try:
