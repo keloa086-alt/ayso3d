@@ -500,6 +500,38 @@ async def see(payload: dict):
     except Exception as e:
         return {"desc": "ما كدرت أشوف الشاشة: " + str(e)[:60], "audio": "", "fmt": "none"}
 
+def _wants_screen(t: str) -> bool:
+    keys = ["الشاشة", "الشاشه", "هذا", "هسه", "شنو هذا", "شو هذا", "شوف",
+            "شايف", "اكو", "موجود", "افتح", "دوس", "اضغط", "ابحث", "اكتب",
+            "رجعت", "التطبيق", "الصفحه", "هنا"]
+    return any(k in t for k in keys)
+
+def _see_and_answer(text: str, img64: str) -> str:
+    try:
+        import io as _io, base64 as _b64
+        from PIL import Image
+        model, proc = get_vis()
+        from qwen_vl_utils import process_vision_info
+        im = Image.open(_io.BytesIO(_b64.b64decode(img64))).convert("RGB")
+        prompt = ("المستخدم داخل تطبيق: " + (CUR_APP or "غير معروف") + "\n"
+                  "طلبه: " + text + "\n\n"
+                  "جاوب بجملة أو جملتين بلهجة عراقية. إذا كان يطلب أمر "
+                  "(افتح/دوس/ابحث) فوضح شنو تشوف وشنو رح تسوي. "
+                  "لا تخترع أشياء مو بالصورة.")
+        msgs = [{"role":"user","content":[
+            {"type":"image","image":im},
+            {"type":"text","text":prompt}]}]
+        tx = proc.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+        imgs, vids = process_vision_info(msgs)
+        inp = proc(text=[tx], images=imgs, videos=vids, return_tensors="pt").to(model.device)
+        with torch.no_grad():
+            out = model.generate(**inp, max_new_tokens=90, do_sample=False)
+        r = proc.batch_decode(out[:, inp["input_ids"].shape[1]:], skip_special_tokens=True)[0].strip()
+        return r if r else None
+    except Exception as e:
+        print("vision fail:", str(e)[:60], flush=True)
+        return None
+
 @app.post("/chat")
 async def chat(p: dict):
     """يستقبل نصاً جاهزاً (من SpeechRecognizer بالجوال) — أسرع وأدق"""
@@ -521,12 +553,18 @@ async def chat(p: dict):
     global CUR_APP
     CUR_APP = str(p.get("app", ""))[:60]
     heard = str(p.get("text", "")).strip()
+    img64 = p.get("img", "")
     if not heard:
         return {"heard": "", "reply": "ما سمعت شي", "audio": "", "fmt": "none"}
 
     extract_facts(heard)
     try:
-        rep = think(heard)
+        # لو الصورة موجودة والطلب يخص الشاشة → شوف الصورة
+        rep = None
+        if img64 and _wants_screen(heard):
+            rep = _see_and_answer(heard, img64)
+        if not rep:
+            rep = think(heard)
     except Exception as e:
         return {"heard": heard, "reply": "خطأ تفكير: " + str(e)[:40], "audio": "", "fmt": "none"}
     HIST.append((heard, rep))
