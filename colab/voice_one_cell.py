@@ -56,14 +56,14 @@ IRAQ_PROMPT = ("المتحدث عراقي. كلمات شائعة: شنو، شل�
                "الاعدادات، الخريطة، جيميل، الكاميرا، الرسائل، الهاتف، المعرض.")
 print("ASR ok", flush=True)
 
-MID = "Qwen/Qwen2.5-1.5B-Instruct"
+MID = os.environ.get("AYSO_LLM", "Qwen/Qwen2.5-7B-Instruct")
 tok = AutoTokenizer.from_pretrained(MID)
 q = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
                        bnb_4bit_compute_dtype=torch.float16) if dev=="cuda" else None
 llm = AutoModelForCausalLM.from_pretrained(MID, quantization_config=q,
       torch_dtype=torch.float16 if dev=="cuda" else torch.float32, device_map="auto")
 llm.eval()
-print("LLM ok", flush=True)
+print("LLM ok —", MID, flush=True)
 
 # ═══ رؤية الشاشة ═══
 _vis = {"m": None, "p": None}
@@ -146,14 +146,14 @@ SYS = ("أنت مساعد صوتي عراقي اسمك أيصو. جاوب بجم
 
 def think(t):
     m = [{"role":"system","content": SYS + mem_block()}]
-    for u, a in HIST[-8:]:
+    for u, a in HIST[-12:]:
         m.append({"role":"user","content":u})
         m.append({"role":"assistant","content":a})
     m.append({"role":"user","content":t})
     p = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
     ids = tok(p, return_tensors="pt").to(llm.device)
     with torch.no_grad():
-        o = llm.generate(**ids, max_new_tokens=90, do_sample=True, temperature=0.75,
+        o = llm.generate(**ids, max_new_tokens=150, do_sample=True, temperature=0.7,
                          top_p=0.9, repetition_penalty=1.1,
                          pad_token_id=tok.eos_token_id)
     out = tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
@@ -290,6 +290,8 @@ TSYS = """أنت وكيل ذكي يتحكم بجوال أندرويد خطوة �
 - اذا شفت بالتطبيق المطلوب مفتوح، ابدأ أنقر/تكتب.
 - اذا الخطوة السابقة فشلت (شاشة ما تغيرت)، جرّب طريقة ثانية.
 - لا تعيد نفس الإجراء أكثر من مرتين.
+- إذا شفت الشاشة نفسها ما تغيرت مرتين، جرّب تمرير أو رجوع.
+- إذا الهدف يذكر تطبيق معين، أول خطوة لازم تكون open.
 - الـsay بلهجة عراقية قصيرة جداً (٥ كلمات أقصى).
 - أرجع JSON فقط بلا شرح."""
 
@@ -361,6 +363,7 @@ async def task(p: dict):
     hist = p.get("history","")
     nodes = p.get("nodes","")
     img64 = p.get("img","")
+    cur_app = p.get("app","")
     apps = p.get("apps","")
 
     lines = [l for l in nodes.splitlines() if l.strip()][:45]
@@ -377,7 +380,8 @@ async def task(p: dict):
 
     prompt = (f"الهدف: {goal}\nالخطوة: {step}\n"
               f"الخطوات السابقة:\n{hist or 'لا شي'}\n\n"
-              f"التطبيقات المتاحة: {apps_short}\n\n"
+              f"التطبيقات المتاحة: {apps_short}\n"
+              f"التطبيق الحالي: {cur_app or 'الرئيسية'}\n\n"
               f"عناصر الشاشة (رقم|نص|ينقر):\n{nodes}")
 
     try:
@@ -514,6 +518,8 @@ async def chat(p: dict):
     except Exception:
         pass
 
+    global CUR_APP
+    CUR_APP = str(p.get("app", ""))[:60]
     heard = str(p.get("text", "")).strip()
     if not heard:
         return {"heard": "", "reply": "ما سمعت شي", "audio": "", "fmt": "none"}
@@ -524,7 +530,7 @@ async def chat(p: dict):
     except Exception as e:
         return {"heard": heard, "reply": "خطأ تفكير: " + str(e)[:40], "audio": "", "fmt": "none"}
     HIST.append((heard, rep))
-    if len(HIST) > 12: HIST.pop(0)
+    if len(HIST) > 16: HIST.pop(0)
 
     try:
         blob, fmt = speak(rep); aud = base64.b64encode(blob).decode()
@@ -595,7 +601,7 @@ async def voice(file: UploadFile = File(...), request: Request = None):
     except Exception as e:
         return {"heard":heard,"reply":f"خطأ تفكير: {str(e)[:40]}","audio":"","fmt":"none"}
     HIST.append((heard, rep))
-    if len(HIST) > 12: HIST.pop(0)
+    if len(HIST) > 16: HIST.pop(0)
     try:
         blob, fmt = speak(rep); aud = base64.b64encode(blob).decode()
     except Exception as e:
