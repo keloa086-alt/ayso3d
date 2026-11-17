@@ -67,8 +67,15 @@ print("LLM ok —", MID, flush=True)
 
 # ═══ رؤية الشاشة ═══
 _vis = {"m": None, "p": None}
+USE_VIS = os.environ.get("AYSO_VIS", "auto")   # auto | off
 def get_vis():
+    if USE_VIS == "off":
+        raise RuntimeError("vision disabled")
     if _vis["m"] is None:
+        if dev == "cuda":
+            free, total = torch.cuda.mem_get_info()
+            if free < 5.5 * 1024**3:      # نحتاج ~٥.٥ غ
+                raise RuntimeError(f"ذاكرة غير كافية ({free/1024**3:.1f}GB)" )
         from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
         mid = "Qwen/Qwen2.5-VL-3B-Instruct"
         q2 = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
@@ -353,6 +360,7 @@ async def watch(p: dict):
             print("WATCH |", say[:50], flush=True)
         return {"say": say}
     except Exception as e:
+        print("watch skip:", str(e)[:50], flush=True)
         return {"say": ""}
 
 @app.post("/task")
@@ -386,6 +394,7 @@ async def task(p: dict):
 
     try:
         if img64:
+          try:
             from PIL import Image
             model, proc = get_vis()
             from qwen_vl_utils import process_vision_info
@@ -399,6 +408,14 @@ async def task(p: dict):
             with torch.no_grad():
                 out = model.generate(**inp, max_new_tokens=80, do_sample=False)
             raw = proc.batch_decode(out[:, inp["input_ids"].shape[1]:], skip_special_tokens=True)[0].strip()
+          except Exception as _ve:
+            print("task vision skip:", str(_ve)[:50], flush=True)
+            m = [{"role":"system","content":TSYS},{"role":"user","content":prompt}]
+            t = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
+            ids = tok(t, return_tensors="pt").to(llm.device)
+            with torch.no_grad():
+                o = llm.generate(**ids, max_new_tokens=80, do_sample=False, pad_token_id=tok.eos_token_id)
+            raw = tok.decode(o[0][ids["input_ids"].shape[1]:], skip_special_tokens=True).strip()
         else:
             m = [{"role":"system","content":TSYS},{"role":"user","content":prompt}]
             t = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
@@ -433,21 +450,26 @@ async def agent(p: dict):
     prompt = f"أمر المستخدم: {cmd}\n\nعناصر الشاشة (رقم|نص|قابل للنقر):\n{nodes}"
 
     try:
+        _raw = None
         if img64:
-            # ── بالصورة + قائمة العناصر ──
-            from PIL import Image
-            model, proc = get_vis()
-            from qwen_vl_utils import process_vision_info
-            im = Image.open(_io.BytesIO(_b64.b64decode(img64))).convert("RGB")
-            msgs = [{"role":"user","content":[
-                {"type":"image","image":im},
-                {"type":"text","text":AGR + "\n\n" + prompt}]}]
-            text = proc.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
-            imgs, vids = process_vision_info(msgs)
-            inp = proc(text=[text], images=imgs, videos=vids, return_tensors="pt").to(model.device)
-            with torch.no_grad():
-                out = model.generate(**inp, max_new_tokens=90, do_sample=False)
-            raw = proc.batch_decode(out[:, inp["input_ids"].shape[1]:], skip_special_tokens=True)[0].strip()
+            try:
+                from PIL import Image
+                model, proc = get_vis()
+                from qwen_vl_utils import process_vision_info
+                im = Image.open(_io.BytesIO(_b64.b64decode(img64))).convert("RGB")
+                msgs = [{"role":"user","content":[
+                    {"type":"image","image":im},
+                    {"type":"text","text":AGR + "\n\n" + prompt}]}]
+                text = proc.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+                imgs, vids = process_vision_info(msgs)
+                inp = proc(text=[text], images=imgs, videos=vids, return_tensors="pt").to(model.device)
+                with torch.no_grad():
+                    out = model.generate(**inp, max_new_tokens=90, do_sample=False)
+                _raw = proc.batch_decode(out[:, inp["input_ids"].shape[1]:], skip_special_tokens=True)[0].strip()
+            except Exception as _e:
+                print("agent vision skip:", str(_e)[:50], flush=True)
+        if _raw:
+            raw = _raw
         else:
             m = [{"role":"system","content":AGR},{"role":"user","content":prompt}]
             t = tok.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
@@ -561,8 +583,12 @@ async def chat(p: dict):
     try:
         # لو الصورة موجودة والطلب يخص الشاشة → شوف الصورة
         rep = None
-        if img64 and _wants_screen(heard):
-            rep = _see_and_answer(heard, img64)
+        try:
+            if img64 and _wants_screen(heard):
+                rep = _see_and_answer(heard, img64)
+        except Exception as _e:
+            print("vision skipped:", str(_e)[:60], flush=True)
+            rep = None
         if not rep:
             rep = think(heard)
     except Exception as e:
