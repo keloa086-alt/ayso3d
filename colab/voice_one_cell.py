@@ -689,6 +689,21 @@ def gpu():
     except Exception as e:
         return {"err": str(e)[:60]}
 
+@app.get("/health")
+def health():
+    return {"ok": True, "asr": ASR is not None, "llm": MID,
+            "gpu": torch.cuda.is_available(),
+            "vis_loaded": _vis["m"] is not None}
+
+@app.get("/gpu")
+def gpu():
+    try:
+        free, total = torch.cuda.mem_get_info()
+        return {"free_gb": round(free/1024**3, 2), "total_gb": round(total/1024**3, 2),
+                "llm": MID, "vis_loaded": _vis["m"] is not None}
+    except Exception as e:
+        return {"err": str(e)[:60]}
+
 uvicorn.run(app, host="0.0.0.0", port=8000, log_level="error")
 '''
 open("/content/ayso_srv.py","w").write(SERVER)
